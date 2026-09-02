@@ -1,0 +1,150 @@
+                                 If rs_insert(rs_import_columns!col_table_document) = "" Then
+                                 rs_insert(rs_import_columns!col_table_document) = Left(UCase(Trim(row(1, col))), LG_MAX_TITRE)
+                           rs_out_ppd_jalon.Delete
+            CreeReference_JS0 = "Ligne_" & extrait_Groupeligne(ligne) & "." & extrait_Indiceligne(ligne) & "_PPD"
+            CreeReference_JS0 = "Ligne_" & ligne & "_PPD"
+ ,LignePPDCouverteParAutreNumero ='
+ @import
+ Export_
+ From import_programmation_jalon
+ NomUtilisateur, NumLotRATP, FichierFicheAvis_Envoye,ReponseFicheAvis,RefuseAuChargement,flagEnCoursImport
+ PPDCo`
+ WHERE import_programmation_jalon.IdDocument=
+ d'une colonne du PPD (cf table import_columns)
+ existe , mais dans une autre version. Voulez-vous importer cet envoi quand m
+ export
+ exporter
+ import
+ import_
+ importer
+ importer 
+ importer !
+ importer.
+ jalon pour ce document, on l'importe avec cet autre jalon s'il n'y a qu'un seul autre jalon
+ non import
+ une info du PPD
+"import_
+'                                rs_out_ppd_jalon!DatePrevisionnelle = datePrev
+'                                rs_out_ppd_jalon!EstPrevisionnel = True
+'                                rs_out_ppd_jalon!Id = nextJalon()
+'                                rs_out_ppd_jalon!idDocument = idDocument
+'                                rs_out_ppd_jalon!idJalon = rs_jalon!Id
+'                                rs_out_ppd_jalon!idVersion = idVersion
+'                                rs_out_ppd_jalon.AddNew
+'                                rs_out_ppd_jalon.Edit
+'                                rs_out_ppd_jalon.Update
+'                            If Not rs_out_ppd_jalon.NoMatch Then
+'                            rs_out_ppd_jalon!DatePrevisionnelle = datePrev
+'                            rs_out_ppd_jalon!EstPrevisionnel = False
+'                            rs_out_ppd_jalon!Id = nextJalon()
+'                            rs_out_ppd_jalon!idDocument = idDocument
+'                            rs_out_ppd_jalon!idJalon = rs_jalon!Id
+'                            rs_out_ppd_jalon!idVersion = idVersion
+'                            rs_out_ppd_jalon.AddNew
+'                            rs_out_ppd_jalon.FindFirst ("iddocument=" & idDocument & " and idjalon=" & rs_jalon!Id & " and estprevisionnel=true")
+'                            rs_out_ppd_jalon.FindFirst ("iddocument=" & idDocument & " and idjalon=" & rs_jalon!Id & "And estprevisionnel = true")
+'                            rs_out_ppd_jalon.Update
+' As IndiceLigne,DateResoumission,DelivrableProjet,LignePPDCouverteParAutreNumero,IdPicSupport,IdProduit,IdNiveauConfidentialite,IdNiveauCommunication,IdPourInfo_Acceptation,Homologuant,IdTypeCode,Langue,Projet,Metier,idTypeEnvoi
+' and (aImporter=true or col_table_document='Livrable')
+''    user = user & "(import)"
+''''                            doc_id = rs_ppd_in!Id
+''''                        If rs_ppd_in.NoMatch Then
+''''                        rs_ppd_in.FindFirst "groupeligne = " & GroupeLigne & " and nz(indiceligne)='" & Nz(IndiceLigne) & "'"
+''''                    LigneTitres_PPD = LigneTitres_PPD + 1
+''''                If feuilleXL.Range("A" & LigneTitres_PPD) = titrePremiereColonneXLS_RetoursRATP Then
+''''                MsgBox "Erreurs dans le fichier d'import EXCEL. Veuillez consulter le fichier " & erreurFile, vbExclamation
+''''                MsgBox "Import termin
+''''            'export de la colonne AR (nb envois avant acceptation)
+''''            'export de la colonne AR (nb envois avant acceptation)    
+''''            'export de la colonne AS (nb envois avant acceptation)
+''''            'export de la colonne AS (nb envois avant acceptation)    
+''''            'export des colonnes BC et BD (pourc avancement)
+''''            'export des colonnes BC et BD (pourc avancement)et
+''''            'export des colonnes BD et BE (pourc avancement)
+''''            'export des colonnes BD et BE (pourc avancement)ng
+''''            Do While LigneTitres_PPD < 100
+''''            If LigneTitres_PPD >= 100 Then
+''''            LigneTitres_PPD = 1
+''''            Set resultSet = dbs_in.OpenRecordset("select * from Export_JS1")
+''''            Set resultSet = dbs_in.OpenRecordset("select * from Export_JS1") =
+''''            Set resultSet = dbs_in.OpenRecordset("select * from Export_JS2")
+''''            Set resultSet = dbs_in.OpenRecordset("select * from Export_JS2")or
+''''            Set resultSet = dbs_in.OpenRecordset("select NbEnvoisNecessairesAvantAcceptation from Export_IndicateurJalon_colAR where code='JS1'")
+''''            Set resultSet = dbs_in.OpenRecordset("select NbEnvoisNecessairesAvantAcceptation from Export_IndicateurJalon_colAR where code='JS2'")
+''''            Set resultSet = dbs_in.OpenRecordset("select pourcavancement,id from Export_IndicateurJalon_colBC where code='JS1'")
+''''            Set resultSet = dbs_in.OpenRecordset("select pourcavancement,id from Export_IndicateurJalon_colBC where code='JS1'")Then
+''''            Set resultSet = dbs_in.OpenRecordset("select pourcavancement,id from Export_IndicateurJalon_colBC where code='JS2'")
+''''            Set resultSet = dbs_in.OpenRecordset("select pourcavancement,id from Export_IndicateurJalon_colBC where code='JS2'")  .App
+''''            Set rs_ppd_in = dbs_in.OpenRecordset("SELECT * from document", Options:=dbFailOnError)
+''''            erreurFile = Replace(LitDansFichierIni("BASE", "PATH_DEST_EXPORT_PPD", "config.ini", 100), "%USERPROFILE%", Environ("USERPROFILE")) & "\Erreurs_Import_RetoursRapideRATP.txt"
+''''            row_index = LigneTitres_PPD + 1
+''''        'export des infos jalon JS1
+''''        'export des infos jalon JS2
+''''    Dim LigneTitres_PPD As Long
+''''    Dim rs_import_columns As dao.Recordset
+''''    Dim rs_ppd_in As dao.Recordset
+''''    ImportRetoursRATP
+''''''        MkDir Left(export_file_name, p)
+''''''        export_KPI1
+''''''    If Dir(Left(export_file_name, p), vbDirectory) = "" Then
+''''''    Set oWs = oWb.Sheets("PPD")
+''''''    SysCmd acSysCmdSetStatus, "Ecriture de la feuille EXCEL PPD"
+''''''    SysCmd acSysCmdSetStatus, "Ecriture de la feuille EXCEL PPD"tObj
+''''''    destinationFile = LitDansFichierIni("BASE", "PATH_DEST_EXPORT_KPI", "config.ini")
+''''''    destinationFile = Replace(LitDansFichierIni("BASE", "PATH_LOCAL", "config.ini", 100), "%USERPROFILE%", Environ("USERPROFILE"))   ' & "export_001.xlsx"
+''''''    destinationFile = Replace(LitDansFichierIni("BASE", "PATH_LOCAL", "config.ini", 100), "%USERPROFILE%", Environ("USERPROFILE"))   ' & "export_001.xlsx"pl
+''''''    p = InStrRev(export_file_name, "\")
+''''''Private Sub export_report_Click()
+''''''Sub DoExport(template_config_name As String, query_def_name As String, export_file_name As String)
+''''''Sub export_001()
+''''''Sub export_001() 
+''''''Sub export_KPI1()
+''''Sub ImportRetoursRATP()
+''If isImport Then
+''Sub Save_Histo_For(db as DAO.database, key As Integer, property As String, Optional isImport As Boolean = False)
+'import
+'import 
+(((import_raw.RefExt)<>"")):
+(db as DAO.database, key As Integer, property As String, Optional isImport As Boolean = False)
+(import)
+, on n'importe pas la ligne que si dernier envoi
+.important {color:red;font-weight:bold;}
+:`s_ppd@
+Abandon de l'import de fichier.
+AttachTables_Import
+Attention, tous les documents de cet export n'ont pas le m
+Attention, vous ne pouvez pas exporter le bordereau, il contient une r
+Confirmez-vous l'annulation de l'import de ce document ? 
+Confirmez-vous l'import de tous les documents sans erreur ?
+Const query_string As String = " SELECT * FROM import_raw WHERE id = [which_id];"
+CreeJalonsImportes
+CreeJalonsImportes*
+DELETE * FROM import_bilan_envois  
+DELETE * FROM import_compare 
+DELETE * FROM import_raw 
+DELETE * FROM import_revisions 
+DerniereLigneImporteePPD
+DerniereLigneImporteePPDP
+DerniereNbLigneImportee
+DoCmd.Close acForm, "import_compare"
+DoCmd.RunSQL "DELETE * FROM xx_import_PDM"
+DoExport
+DoExportPPD
+DoExportPPDm
+DoExportg=
+DocClass=Form_EXPORT/&H00000000
+DocClass=Form_import_compare/&H00000000
+DocClass=Form_import_nouveaux_docs/&H00000000
+EXPORT 
+EXPORT_
+EXPORT_B
+EXPORT_RATP
+Erreur de format du fichier import
+Erreurs dans le fichier d'import EXCEL. Veuillez consulter le fichier  
+EstPrevisionnel = Nz(rs_import("Jalon_estPrevisionnel_" & Jalon).Value)
+Etape 4 - importe envois 
+Etape 4 - importe envoisA@
+Etape import Ligne 
+Export
+Export Ligne 
+ExportBilanEnvois

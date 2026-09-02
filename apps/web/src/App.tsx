@@ -100,6 +100,16 @@ export function App() {
         </div>
         <Text className={s.headerText}>v{meta?.version ?? "1.0.0"}</Text>
       </header>
+      {import.meta.env.VITE_STATIC_DEMO === "true" ? (
+        <MessageBar intent="info">
+          <MessageBarBody>
+            <MessageBarTitle>Démo publique temporaire</MessageBarTitle>
+            Données synthétiques dans le navigateur (pas de serveur, pas d&apos;Entra, pas la production Alstom /
+            SharePoint). Production : site{" "}
+            <a href="https://alstomgroup.sharepoint.com/sites/BT_BTPIIMaroc-GestionDoc">BT_BTPIIMaroc-GestionDoc</a>.
+          </MessageBarBody>
+        </MessageBar>
+      ) : null}
       {meta?.lock?.locked ? (
         <MessageBar intent="warning">
           <MessageBarBody>

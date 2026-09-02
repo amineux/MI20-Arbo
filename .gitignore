@@ -26,3 +26,4 @@ spfx/sharepoint/
 .idea/
 *.tgz
 .cache/
+apps/web/.vite/

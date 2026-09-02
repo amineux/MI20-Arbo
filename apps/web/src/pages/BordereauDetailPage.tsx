@@ -121,12 +121,9 @@ export function BordereauDetailPage() {
           Exporter le pack
         </Button>
         <Button
-          onClick={() => {
-            const a = document.createElement("a");
-            a.href = `/api/bordereaux/${id}/download`;
-            a.download = `${String(data.bordereau.NomComplet)}.zip`;
-            a.click();
-          }}
+          onClick={() =>
+            api.download(`/api/bordereaux/${id}/download`, `${String(data.bordereau.NomComplet)}.zip`)
+          }
         >
           Télécharger ZIP
         </Button>

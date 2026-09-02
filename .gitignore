@@ -27,3 +27,4 @@ spfx/sharepoint/
 *.tgz
 .cache/
 apps/web/.vite/
+apps/web/public/demo-fixtures/

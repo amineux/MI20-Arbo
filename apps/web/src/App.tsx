@@ -1,15 +1,11 @@
 import {
-  Body1,
-  Button,
   makeStyles,
   MessageBar,
   MessageBarBody,
   MessageBarTitle,
-  Tab,
-  TabList,
   Text,
-  tokens,
   Title3,
+  tokens,
 } from "@fluentui/react-components";
 import {
   ArrowDownloadRegular,
@@ -24,38 +20,87 @@ import {
   HistoryRegular,
   ArrowSyncRegular,
 } from "@fluentui/react-icons";
-import { useEffect, useState } from "react";
-import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { lazy, Suspense, useEffect, useLayoutEffect, useState, type ReactNode } from "react";
+import { NavLink, Route, Routes, useLocation } from "react-router-dom";
 import { api } from "./api";
+import { hideBootSplash } from "./boot";
 import { HomePage } from "./pages/HomePage";
-import { DocumentsPage } from "./pages/DocumentsPage";
-import { DocumentEditPage } from "./pages/DocumentEditPage";
-import { ImportPpdPage } from "./pages/ImportPpdPage";
-import { ExportPpdPage } from "./pages/ExportPpdPage";
-import { BordereauxPage } from "./pages/BordereauxPage";
-import { BordereauDetailPage } from "./pages/BordereauDetailPage";
-import { LookupsPage } from "./pages/LookupsPage";
-import { StubPage } from "./pages/StubPage";
+import { Loading, ToastHost } from "./ui";
+
+const DocumentsPage = lazy(() => import("./pages/DocumentsPage").then((m) => ({ default: m.DocumentsPage })));
+const DocumentEditPage = lazy(() => import("./pages/DocumentEditPage").then((m) => ({ default: m.DocumentEditPage })));
+const ImportPpdPage = lazy(() => import("./pages/ImportPpdPage").then((m) => ({ default: m.ImportPpdPage })));
+const ExportPpdPage = lazy(() => import("./pages/ExportPpdPage").then((m) => ({ default: m.ExportPpdPage })));
+const BordereauxPage = lazy(() => import("./pages/BordereauxPage").then((m) => ({ default: m.BordereauxPage })));
+const BordereauDetailPage = lazy(() =>
+  import("./pages/BordereauDetailPage").then((m) => ({ default: m.BordereauDetailPage })),
+);
+const LookupsPage = lazy(() => import("./pages/LookupsPage").then((m) => ({ default: m.LookupsPage })));
+const RevisionsPage = lazy(() => import("./pages/RevisionsPage").then((m) => ({ default: m.RevisionsPage })));
+const RetoursRatpPage = lazy(() => import("./pages/RetoursRatpPage").then((m) => ({ default: m.RetoursRatpPage })));
+const KpiPage = lazy(() => import("./pages/KpiPage").then((m) => ({ default: m.KpiPage })));
+const RapportsPage = lazy(() => import("./pages/RapportsPage").then((m) => ({ default: m.RapportsPage })));
+const VerrouillagePage = lazy(() => import("./pages/VerrouillagePage").then((m) => ({ default: m.VerrouillagePage })));
 
 const useStyles = makeStyles({
-  root: { minHeight: "100vh", display: "flex", flexDirection: "column", backgroundColor: tokens.colorNeutralBackground2 },
+  root: {
+    minHeight: "100vh",
+    display: "flex",
+    flexDirection: "column",
+    backgroundColor: tokens.colorNeutralBackground2,
+  },
   header: {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: "12px 20px",
-    backgroundColor: tokens.colorBrandBackground,
-    color: tokens.colorNeutralForegroundOnBrand,
+    gap: "16px",
+    flexWrap: "wrap",
+    padding: "14px 24px",
+    backgroundColor: "#1B365D",
+    color: "#fff",
   },
-  headerText: { color: tokens.colorNeutralForegroundOnBrand },
+  brand: { display: "flex", flexDirection: "column", gap: "2px" },
+  headerText: { color: "#fff" },
+  headerSub: { color: "rgba(255,255,255,0.82)", fontSize: "13px" },
   nav: {
     backgroundColor: tokens.colorNeutralBackground1,
     borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
-    padding: "0 8px",
+    padding: "0 12px",
     overflowX: "auto",
+    display: "flex",
+    gap: "4px",
   },
-  main: { flex: 1, padding: "16px 20px 32px", maxWidth: "1400px", width: "100%", margin: "0 auto", boxSizing: "border-box" },
-  footer: { padding: "8px 20px", color: tokens.colorNeutralForeground3, fontSize: "12px" },
+  navLink: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "6px",
+    padding: "10px 12px",
+    fontSize: "13px",
+    color: tokens.colorNeutralForeground2,
+    textDecoration: "none",
+    borderBottom: "2px solid transparent",
+    whiteSpace: "nowrap",
+  },
+  navActive: {
+    color: "#1B365D",
+    fontWeight: 600,
+    borderBottomColor: "#1B365D",
+  },
+  main: {
+    flex: 1,
+    padding: "20px 24px 40px",
+    maxWidth: "1280px",
+    width: "100%",
+    margin: "0 auto",
+    boxSizing: "border-box",
+  },
+  footer: {
+    padding: "12px 24px",
+    color: tokens.colorNeutralForeground3,
+    fontSize: "12px",
+    borderTop: `1px solid ${tokens.colorNeutralStroke2}`,
+    backgroundColor: tokens.colorNeutralBackground1,
+  },
 });
 
 interface Meta {
@@ -65,7 +110,7 @@ interface Meta {
   lock: { locked: number; message: string | null };
 }
 
-const NAV = [
+const NAV: Array<{ to: string; label: string; icon: ReactNode; end?: boolean }> = [
   { to: "/", label: "Accueil", icon: <HomeRegular />, end: true },
   { to: "/documents", label: "Documents", icon: <DocumentRegular /> },
   { to: "/import-ppd", label: "Import PPD", icon: <ArrowUploadRegular /> },
@@ -82,153 +127,83 @@ const NAV = [
 export function App() {
   const s = useStyles();
   const loc = useLocation();
-  const nav = useNavigate();
   const [meta, setMeta] = useState<Meta | null>(null);
+
+  useLayoutEffect(() => {
+    hideBootSplash();
+  }, []);
 
   useEffect(() => {
     api.get<Meta>("/api/meta").then(setMeta).catch(() => undefined);
   }, [loc.pathname]);
 
-  const selected = NAV.find((n) => (n.end ? loc.pathname === "/" : loc.pathname.startsWith(n.to)))?.to ?? "/";
-
   return (
-    <div className={s.root}>
-      <header className={s.header}>
-        <div>
-          <Title3 className={s.headerText}>{meta?.projectName ?? "MI20 Arbo"}</Title3>
-          <Body1 className={s.headerText}> Plan de production documentaire · bordereau</Body1>
-        </div>
-        <Text className={s.headerText}>v{meta?.version ?? "1.0.0"}</Text>
-      </header>
-      {import.meta.env.VITE_STATIC_DEMO === "true" ? (
-        <MessageBar intent="info">
-          <MessageBarBody>
-            <MessageBarTitle>Démo publique temporaire</MessageBarTitle>
-            Données synthétiques dans le navigateur (pas de serveur, pas d&apos;Entra, pas la production Alstom /
-            SharePoint). Production : site{" "}
-            <a href="https://alstomgroup.sharepoint.com/sites/BT_BTPIIMaroc-GestionDoc">BT_BTPIIMaroc-GestionDoc</a>.
-          </MessageBarBody>
-        </MessageBar>
-      ) : null}
-      {meta?.lock?.locked ? (
-        <MessageBar intent="warning">
-          <MessageBarBody>
-            <MessageBarTitle>Base verrouillée</MessageBarTitle>
-            {meta.lock.message || "Form_VerrouillageBase — les mises à jour sont suspendues."}
-          </MessageBarBody>
-        </MessageBar>
-      ) : null}
-      <nav className={s.nav}>
-        <TabList
-          selectedValue={selected}
-          size="small"
-          onTabSelect={(_, d) => {
-            if (typeof d.value === "string") nav(d.value);
-          }}
-        >
+    <ToastHost>
+      <div className={s.root}>
+        <header className={s.header}>
+          <div className={s.brand}>
+            <Title3 className={s.headerText}>{meta?.projectName ?? "MI20 Arbo"}</Title3>
+            <span className={s.headerSub}>Plan de production documentaire · bordereaux · IHM 1.6.6</span>
+          </div>
+          <Text className={s.headerText}>v{meta?.version ?? "1.0.0"}</Text>
+        </header>
+        {import.meta.env.VITE_STATIC_DEMO === "true" ? (
+          <MessageBar intent="info">
+            <MessageBarBody>
+              <MessageBarTitle>Démo publique temporaire</MessageBarTitle>
+              Données synthétiques dans le navigateur — pas Entra, pas SharePoint. Production :{" "}
+              <a href="https://alstomgroup.sharepoint.com/sites/BT_BTPIIMaroc-GestionDoc">BT_BTPIIMaroc-GestionDoc</a>.
+              Si l&apos;accueil est vide, blanc, ou l&apos;ancien écran de landing : <b>Ctrl+Maj+R</b> (hard refresh) pour
+              ignorer le cache du navigateur.
+            </MessageBarBody>
+          </MessageBar>
+        ) : null}
+        {meta?.lock?.locked ? (
+          <MessageBar intent="warning">
+            <MessageBarBody>
+              <MessageBarTitle>Base verrouillée</MessageBarTitle>
+              {meta.lock.message || "Form_VerrouillageBase — les mises à jour sont suspendues."}
+            </MessageBarBody>
+          </MessageBar>
+        ) : null}
+        <nav className={s.nav} aria-label="Modules">
           {NAV.map((item) => (
-            <Tab key={item.to} icon={item.icon} value={item.to}>
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              className={({ isActive }) => `${s.navLink} ${isActive ? s.navActive : ""}`}
+            >
+              {item.icon}
               {item.label}
-            </Tab>
+            </NavLink>
           ))}
-        </TabList>
-      </nav>
-      <main className={s.main}>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/documents" element={<DocumentsPage />} />
-          <Route path="/documents/:id" element={<DocumentEditPage />} />
-          <Route path="/import-ppd" element={<ImportPpdPage />} />
-          <Route path="/import-ppd/:batchId" element={<ImportPpdPage />} />
-          <Route path="/export-ppd" element={<ExportPpdPage />} />
-          <Route path="/bordereaux" element={<BordereauxPage />} />
-          <Route path="/bordereaux/:id" element={<BordereauDetailPage />} />
-          <Route path="/lookups" element={<LookupsPage />} />
-          <Route
-            path="/revisions"
-            element={
-              <StubPage
-                title="Révisions"
-                form="Form_CREATE_REV"
-                detail="Création d'indice de révision lié à programmation_jalon. Prévu phase suivante."
-              />
-            }
-          />
-          <Route
-            path="/retours-ratp"
-            element={
-              <StubPage
-                title="Retours RATP / fiche avis"
-                form="Form_SaisieRetoursRATP"
-                detail="Saisie des retours, fichiers FA sur revision, ImportRetoursRATP."
-              />
-            }
-          />
-          <Route
-            path="/kpi"
-            element={
-              <StubPage
-                title="KPI / bilan envois / documents d'autorisation"
-                form="Form_EXPORT"
-                detail="Templates officiels sous fixtures/ : KPI1_Template.xlsm, BilanEnvois_Template.xlsx, DoctsAutorisation_Template.xlsx (GET /api/templates). Export métier à brancher."
-              />
-            }
-          />
-          <Route
-            path="/rapports"
-            element={
-              <StubPage
-                title="Rapports / audit"
-                form="Form_REPORT"
-                detail="Journal doc_histo (historique champ à champ). Un extrait est déjà alimenté après import/édition."
-              />
-            }
-          />
-          <Route path="/verrouillage" element={<LockPage onChange={() => api.get<Meta>("/api/meta").then(setMeta)} />} />
-        </Routes>
-      </main>
-      <footer className={s.footer}>
-        Outil interne MI20 Arbo — inspiré de l&apos;IHM Access 1.6.6. Données de démo synthétiques, sans branding
-        constructeur.
-      </footer>
-    </div>
-  );
-}
-
-function LockPage({ onChange }: { onChange: () => void }) {
-  const [lock, setLock] = useState<{ locked: number; message: string | null } | null>(null);
-  useEffect(() => {
-    api.get<{ locked: number; message: string | null }>("/api/lock").then(setLock);
-  }, []);
-  return (
-    <div>
-      <Title3>Verrouillage de la base</Title3>
-      <Body1>
-        Équivalent Form_VerrouillageBase. Bannière globale lorsque la base est verrouillée. La saisie métier des
-        règles de verrou (import en cours, etc.) sera enrichie ensuite.
-      </Body1>
-      <div style={{ marginTop: 16, display: "flex", gap: 8 }}>
-        <Button
-          appearance="primary"
-          onClick={async () => {
-            await api.post("/api/lock", { locked: true, message: "Base verrouillée pour maintenance (démo)." });
-            setLock(await api.get("/api/lock"));
-            onChange();
-          }}
-        >
-          Verrouiller
-        </Button>
-        <Button
-          onClick={async () => {
-            await api.post("/api/lock", { locked: false, message: null });
-            setLock(await api.get("/api/lock"));
-            onChange();
-          }}
-        >
-          Déverrouiller
-        </Button>
+        </nav>
+        <main className={s.main}>
+          <Suspense fallback={<Loading label="Chargement du module…" />}>
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/documents" element={<DocumentsPage />} />
+              <Route path="/documents/:id" element={<DocumentEditPage />} />
+              <Route path="/import-ppd" element={<ImportPpdPage />} />
+              <Route path="/import-ppd/:batchId" element={<ImportPpdPage />} />
+              <Route path="/export-ppd" element={<ExportPpdPage />} />
+              <Route path="/bordereaux" element={<BordereauxPage />} />
+              <Route path="/bordereaux/:id" element={<BordereauDetailPage />} />
+              <Route path="/lookups" element={<LookupsPage />} />
+              <Route path="/revisions" element={<RevisionsPage />} />
+              <Route path="/retours-ratp" element={<RetoursRatpPage />} />
+              <Route path="/kpi" element={<KpiPage />} />
+              <Route path="/rapports" element={<RapportsPage />} />
+              <Route path="/verrouillage" element={<VerrouillagePage onChange={() => api.get<Meta>("/api/meta").then(setMeta)} />} />
+            </Routes>
+          </Suspense>
+        </main>
+        <footer className={s.footer}>
+          Outil interne MI20 Arbo — inspiré de l&apos;IHM Access BASE ARBO 1.6.6. Données de démo synthétiques. Modules :
+          docs/handoff (pas Form_ARCHI).
+        </footer>
       </div>
-      <pre style={{ marginTop: 16 }}>{JSON.stringify(lock, null, 2)}</pre>
-    </div>
+    </ToastHost>
   );
 }

@@ -8,14 +8,15 @@ import {
   TableHeader,
   TableHeaderCell,
   TableRow,
-  Title3,
 } from "@fluentui/react-components";
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { api } from "../api";
+import { Loading, PageHeader, useToast } from "../ui";
 
 export function BordereauDetailPage() {
   const { id } = useParams();
+  const { toast } = useToast();
   const [data, setData] = useState<{
     bordereau: Record<string, unknown>;
     envois: Array<Record<string, unknown>>;
@@ -30,23 +31,27 @@ export function BordereauDetailPage() {
       .get<{ bordereau: Record<string, unknown>; envois: Array<Record<string, unknown>>; template: string }>(
         `/api/bordereaux/${id}`,
       )
-      .then(setData);
+      .then(setData)
+      .catch((e: Error) => toast("error", "Bordereau", e.message));
 
   useEffect(() => {
     reload();
   }, [id]);
 
-  if (!data) return null;
+  if (!data) return <Loading label="Chargement du bordereau…" />;
 
   return (
     <div>
-      <Title3>{String(data.bordereau.NomComplet)}</Title3>
-      <Body1>
-        Template officiel {data.template} (fixtures/). Joindre des documents puis exporter le pack EXPORT_BX — le
-        classeur protégé est copié tel quel dans le dossier.
-      </Body1>
-      <div style={{ display: "flex", gap: 8, margin: "12px 0" }}>
+      <Link to="/bordereaux">
+        <Button>← Liste</Button>
+      </Link>
+      <PageHeader title={String(data.bordereau.NomComplet)} form="Form_MGT_BX">
+        Template officiel {data.template}. Joindre des documents puis exporter le pack EXPORT_BX (classeur protégé copié
+        tel quel).
+      </PageHeader>
+      <div style={{ display: "flex", gap: 8, margin: "12px 0", flexWrap: "wrap" }}>
         <Input
+          style={{ minWidth: 240, flex: 1 }}
           placeholder="Rechercher un document à rattacher"
           value={search}
           onChange={(_, d) => setSearch(d.value)}
@@ -57,13 +62,15 @@ export function BordereauDetailPage() {
               `/api/documents?search=${encodeURIComponent(search)}&pageSize=20`,
             );
             setDocs(r.rows);
+            if (!r.rows.length) toast("info", "Aucun document", "Essayez 36 ou AXE");
           }}
         >
           Chercher
         </Button>
       </div>
       {docs.length ? (
-        <Table size="small">
+        <div className="mi20-table-wrap">
+        <Table size="extra-small">
           <TableBody>
             {docs.map((d) => (
               <TableRow key={String(d.Id)}>
@@ -76,6 +83,7 @@ export function BordereauDetailPage() {
                     onClick={async () => {
                       await api.post(`/api/bordereaux/${id}/documents`, { documentIds: [d.Id] });
                       setMsg("Document rattaché.");
+                      toast("success", "Document rattaché");
                       reload();
                     }}
                   >
@@ -86,9 +94,11 @@ export function BordereauDetailPage() {
             ))}
           </TableBody>
         </Table>
+        </div>
       ) : null}
-      <Title3 style={{ marginTop: 16 }}>Envois</Title3>
-      <Table>
+      <Body1 style={{ marginTop: 16, fontWeight: 600 }}>Envois</Body1>
+      <div className="mi20-table-wrap">
+      <Table size="extra-small">
         <TableHeader>
           <TableRow>
             <TableHeaderCell>Ligne</TableHeaderCell>
@@ -110,20 +120,32 @@ export function BordereauDetailPage() {
           ))}
         </TableBody>
       </Table>
-      <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+      </div>
+      <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
         <Button
           appearance="primary"
           onClick={async () => {
-            const r = await api.post<{ folder: string }>(`/api/bordereaux/${id}/export`);
-            setMsg(`Pack généré : ${r.folder}`);
+            try {
+              const r = await api.post<{ folder: string }>(`/api/bordereaux/${id}/export`);
+              setMsg(`Pack généré : ${r.folder}`);
+              toast("success", "Pack EXPORT_BX généré", r.folder);
+            } catch (e) {
+              toast("error", "Export BX", e instanceof Error ? e.message : "échec");
+            }
           }}
         >
           Exporter le pack
         </Button>
         <Button
-          onClick={() =>
-            api.download(`/api/bordereaux/${id}/download`, `${String(data.bordereau.NomComplet)}.zip`)
-          }
+          onClick={async () => {
+            try {
+              await api.post(`/api/bordereaux/${id}/export`);
+              await api.download(`/api/bordereaux/${id}/download`, `${String(data.bordereau.NomComplet)}.zip`);
+              toast("success", "ZIP téléchargé", "Pack EXPORT_BX + archive");
+            } catch (e) {
+              toast("error", "ZIP", e instanceof Error ? e.message : "échec export / téléchargement");
+            }
+          }}
         >
           Télécharger ZIP
         </Button>

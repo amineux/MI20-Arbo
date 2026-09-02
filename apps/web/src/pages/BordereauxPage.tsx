@@ -1,5 +1,4 @@
 import {
-  Body1,
   Button,
   Dropdown,
   Field,
@@ -11,11 +10,11 @@ import {
   TableHeader,
   TableHeaderCell,
   TableRow,
-  Title3,
 } from "@fluentui/react-components";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api";
+import { EmptyState, PageHeader, useToast } from "../ui";
 
 interface Bx {
   Id: number;
@@ -32,6 +31,7 @@ export function BordereauxPage() {
   const [leaders, setLeaders] = useState<Array<{ id: number; nom: string }>>([]);
   const [leaderId, setLeaderId] = useState<string>("");
   const [numero, setNumero] = useState("");
+  const { toast } = useToast();
 
   const reload = () => api.get<{ rows: Bx[] }>("/api/bordereaux").then((r) => setRows(r.rows));
 
@@ -45,10 +45,10 @@ export function BordereauxPage() {
 
   return (
     <div>
-      <Title3>Bordereaux</Title3>
-      <Body1>
-        Form_CREATE_BX / Form_MGT_BX — template MI20_BORD_TEMPLATE_M5_V12.xls. Dossier EXPORT_BX/MI20_BORD_&lt;code&gt;/.
-      </Body1>
+      <PageHeader title="Bordereaux" form="Form_CREATE_BX / Form_MGT_BX">
+        Template officiel MI20_BORD_TEMPLATE_M5_V12.xls. Pack{" "}
+        <code>EXPORT_BX/MI20_BORD_&lt;code&gt;/</code> (manifest + classeur copié).
+      </PageHeader>
       <div style={{ display: "flex", gap: 8, margin: "16px 0", flexWrap: "wrap", alignItems: "end" }}>
         <Field label="Leader technique">
           <Dropdown
@@ -74,32 +74,39 @@ export function BordereauxPage() {
               idLeader: Number(leaderId),
               numero: numero ? Number(numero) : undefined,
             });
+            toast("success", "Bordereau créé");
             nav(`/bordereaux/${r.id}`);
           }}
         >
           Créer
         </Button>
       </div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHeaderCell>Code</TableHeaderCell>
-            <TableHeaderCell>Leader</TableHeaderCell>
-            <TableHeaderCell>Date</TableHeaderCell>
-            <TableHeaderCell>Envois</TableHeaderCell>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((r) => (
-            <TableRow key={r.Id} style={{ cursor: "pointer" }} onClick={() => nav(`/bordereaux/${r.Id}`)}>
-              <TableCell>{r.NomComplet}</TableCell>
-              <TableCell>{r.LeaderNom}</TableCell>
-              <TableCell>{r.DateEnvoi}</TableCell>
-              <TableCell>{r.NbEnvois}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+      {rows.length === 0 ? (
+        <EmptyState title="Aucun bordereau" detail="Choisissez un leader technique puis Créer (parcours démo étape 3)." />
+      ) : (
+        <div className="mi20-table-wrap">
+          <Table size="extra-small">
+            <TableHeader>
+              <TableRow>
+                <TableHeaderCell>Code</TableHeaderCell>
+                <TableHeaderCell>Leader</TableHeaderCell>
+                <TableHeaderCell>Date</TableHeaderCell>
+                <TableHeaderCell>Envois</TableHeaderCell>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((r) => (
+                <TableRow key={r.Id} style={{ cursor: "pointer" }} onClick={() => nav(`/bordereaux/${r.Id}`)}>
+                  <TableCell>{r.NomComplet}</TableCell>
+                  <TableCell>{r.LeaderNom}</TableCell>
+                  <TableCell>{r.DateEnvoi}</TableCell>
+                  <TableCell>{r.NbEnvois}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 }

@@ -12,7 +12,11 @@ Shareable HTTPS test link (GitHub Pages, no Entra, no SharePoint):
 
 **https://amineux.github.io/MI20-Arbo/**
 
-In-browser demo of Documents, Import PPD (SheetJS + official `fixtures/`), Export PPD, Bordereaux, and lookups. State lives in `localStorage`. This is **not** the Alstom production path — that remains Azure + Entra + site `BT_BTPIIMaroc-GestionDoc` ([`docs/DEPLOY_SHAREPOINT.md`](docs/DEPLOY_SHAREPOINT.md)).
+Hash routes (`#/documents`, `#/import-ppd`, `#/bordereaux`) — GitHub Pages 404s path URLs.
+
+**Parcours démo (3 clics)** on Accueil: Documents → Import PPD (charger `Import_Rapide_exemple.xlsx` + appliquer) → créer un bordereau.
+
+In-browser demo (localStorage + official `fixtures/` via SheetJS). **Not** Alstom production — Azure + Entra + `BT_BTPIIMaroc-GestionDoc` ([`docs/DEPLOY_SHAREPOINT.md`](docs/DEPLOY_SHAREPOINT.md)).
 
 Rebuild locally:
 

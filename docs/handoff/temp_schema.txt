@@ -1,0 +1,415 @@
+===== SCHEMA import_raw =====
+-- ----------------------------------------------------------
+-- MDB Tools - A library for reading MS Access database files
+-- Copyright (C) 2000-2011 Brian Bruns and others.
+-- Files in libmdb are licensed under LGPL and the utilities under
+-- the GPL, see COPYING.LIB and COPYING files respectively.
+-- Check out http://mdbtools.sourceforge.net
+-- ----------------------------------------------------------
+
+-- That file uses encoding UTF-8
+
+CREATE TABLE [import_raw]
+ (
+	[Id]			Long Integer, 
+	[ImportUser]			Text (255) NOT NULL, 
+	[ImportTime]			DateTime, 
+	[GroupeLigne]			Long Integer, 
+	[IndiceLigne]			Text (20), 
+	[IdLeader]			Long Integer, 
+	[IdContPartenaire]			Long Integer, 
+	[IdCategorie]			Long Integer, 
+	[IdCategorieAT]			Long Integer, 
+	[IdDomaineBord]			Long Integer, 
+	[IdDomaineChargeur]			Long Integer, 
+	[IdFournisseur]			Long Integer, 
+	[IdTypeDoc]			Long Integer, 
+	[IdTypeDossier]			Long Integer, 
+	[IdOrigine]			Long Integer, 
+	[IdLogicielCAO]			Long Integer, 
+	[IdModeleCAO]			Long Integer, 
+	[QteEstimeeDocs]			Text (50), 
+	[Revision]			Text (12), 
+	[RevisionFournisseur]			Text (12), 
+	[RefExt]			Text (80), 
+	[EstConfidentiel]			Boolean NOT NULL, 
+	[EstSecuritaire]			Boolean NOT NULL, 
+	[RefExtParent]			Memo/Hyperlink (255), 
+	[RefDocumentSource]			Memo/Hyperlink (255), 
+	[IdResponsable]			Long Integer, 
+	[Livrable]			Memo/Hyperlink (255), 
+	[RefRATP]			Memo/Hyperlink (255), 
+	[EffMateriel]			Memo/Hyperlink (255), 
+	[Poste]			Memo/Hyperlink (255), 
+	[IdMetier]			Long Integer, 
+	[N_MF19]			Memo/Hyperlink (255), 
+	[Nom]			Memo/Hyperlink (255), 
+	[Sections]			Memo/Hyperlink (255), 
+	[Categorie]			Memo/Hyperlink (255), 
+	[DocumentsConnexes]			Memo/Hyperlink (255), 
+	[CommentaireBT]			Memo/Hyperlink (255), 
+	[Titre]			Memo/Hyperlink (255), 
+	[Tranche]			Memo/Hyperlink (255), 
+	[SiteEmetteur]			Memo/Hyperlink (255), 
+	[NomsInformatiques]			Memo/Hyperlink (255), 
+	[RefPDMdocFNR]			Text (255), 
+	[RelecturePartenaire]			Text (255), 
+	[IdPIC]			Long Integer, 
+	[IdPerimetre]			Long Integer, 
+	[DateResoumission]			Text (20), 
+	[DelivrableProjet]			Boolean NOT NULL, 
+	[LignePPDCouverteParAutreNumero]			Memo/Hyperlink (255), 
+	[IdPicSupport]			Long Integer, 
+	[IdProduit]			Long Integer, 
+	[IdNiveauConfidentialite]			Long Integer, 
+	[IdNiveauCommunication]			Long Integer, 
+	[IdPourInfo_Acceptation]			Long Integer, 
+	[IdCoEditeur]			Long Integer, 
+	[idCategorieDoc]			Long Integer, 
+	[IdPreuveAutorisation]			Long Integer, 
+	[erreur]			Memo/Hyperlink (255), 
+	[NouveauDocument]			Boolean NOT NULL, 
+	[Homologuant]			Boolean NOT NULL, 
+	[IdTypeCode]			Long Integer, 
+	[ligneEXCEL]			Long Integer, 
+	[Jalon_Nom_1]			Memo/Hyperlink (255), 
+	[Jalon_Valeur_1]			Memo/Hyperlink (255), 
+	[Jalon_Date_1]			DateTime, 
+	[Jalon_Nom_2]			Memo/Hyperlink (255), 
+	[Jalon_Valeur_2]			Memo/Hyperlink (255), 
+	[Jalon_Date_2]			DateTime, 
+	[Jalon_Nom_3]			Memo/Hyperlink (255), 
+	[Jalon_Valeur_3]			Memo/Hyperlink (255), 
+	[Jalon_Date_3]			DateTime, 
+	[Jalon_Nom_4]			Memo/Hyperlink (255), 
+	[Jalon_Valeur_4]			Memo/Hyperlink (255), 
+	[Jalon_Date_4]			DateTime, 
+	[Jalon_Nom_5]			Memo/Hyperlink (255), 
+	[Jalon_Valeur_5]			Memo/Hyperlink (255), 
+	[Jalon_Date_5]			DateTime, 
+	[Jalon_Nom_6]			Memo/Hyperlink (255), 
+	[Jalon_Valeur_6]			Memo/Hyperlink (255), 
+	[Jalon_Date_6]			DateTime, 
+	[Jalon_Nom_7]			Memo/Hyperlink (255), 
+	[Jalon_Valeur_7]			Memo/Hyperlink (255), 
+	[Jalon_Date_7]			DateTime, 
+	[Jalon_Nom_8]			Memo/Hyperlink (255), 
+	[Jalon_Valeur_8]			Memo/Hyperlink (255), 
+	[Jalon_Date_8]			DateTime, 
+	[Jalon_Nom_9]			Memo/Hyperlink (255), 
+	[Jalon_Valeur_9]			Memo/Hyperlink (255), 
+	[Jalon_Date_9]			DateTime, 
+	[Jalon_Nom_10]			Memo/Hyperlink (255), 
+	[Jalon_Valeur_10]			Memo/Hyperlink (255), 
+	[Jalon_Date_10]			DateTime, 
+	[Jalon_Nom_11]			Memo/Hyperlink (255), 
+	[Jalon_Valeur_11]			Memo/Hyperlink (255), 
+	[Jalon_Date_11]			DateTime, 
+	[Jalon_Nom_12]			Memo/Hyperlink (255), 
+	[Jalon_Valeur_12]			Memo/Hyperlink (255), 
+	[Jalon_Date_12]			DateTime, 
+	[Jalon_Nom_13]			Memo/Hyperlink (255), 
+	[Jalon_Valeur_13]			Memo/Hyperlink (255), 
+	[Jalon_Date_13]			DateTime, 
+	[Jalon_Nom_14]			Memo/Hyperlink (255), 
+	[Jalon_Valeur_14]			Memo/Hyperlink (255), 
+	[Jalon_Date_14]			DateTime, 
+	[Jalon_Nom_15]			Memo/Hyperlink (255), 
+	[Jalon_Valeur_15]			Memo/Hyperlink (255), 
+	[Jalon_Date_15]			DateTime, 
+	[Jalon_Nom_16]			Memo/Hyperlink (255), 
+	[Jalon_Valeur_16]			Memo/Hyperlink (255), 
+	[Jalon_Date_16]			DateTime, 
+	[Jalon_Nom_17]			Memo/Hyperlink (255), 
+	[Jalon_Valeur_17]			Memo/Hyperlink (255), 
+	[Jalon_Date_17]			DateTime, 
+	[Jalon_Nom_18]			Memo/Hyperlink (255), 
+	[Jalon_Valeur_18]			Memo/Hyperlink (255), 
+	[Jalon_Date_18]			DateTime, 
+	[Jalon_Nom_19]			Memo/Hyperlink (255), 
+	[Jalon_Valeur_19]			Memo/Hyperlink (255), 
+	[Jalon_Date_19]			DateTime, 
+	[Jalon_Nom_20]			Memo/Hyperlink (255), 
+	[Jalon_Valeur_20]			Memo/Hyperlink (255), 
+	[Jalon_Date_20]			DateTime, 
+	[Jalon_Nom_21]			Memo/Hyperlink (255), 
+	[Jalon_Valeur_21]			Memo/Hyperlink (255), 
+	[Jalon_Date_21]			DateTime, 
+	[Jalon_Nom_22]			Memo/Hyperlink (255), 
+	[Jalon_Valeur_22]			Memo/Hyperlink (255), 
+	[Jalon_Date_22]			DateTime, 
+	[Jalon_Nom_23]			Memo/Hyperlink (255), 
+	[Jalon_Valeur_23]			Memo/Hyperlink (255), 
+	[Jalon_Date_23]			DateTime, 
+	[Jalon_Nom_24]			Memo/Hyperlink (255), 
+	[Jalon_Valeur_24]			Memo/Hyperlink (255), 
+	[Jalon_Date_24]			DateTime, 
+	[Jalon_EstPrevisionnel_1]			Boolean NOT NULL, 
+	[Jalon_EstPrevisionnel_2]			Boolean NOT NULL, 
+	[Jalon_EstPrevisionnel_3]			Boolean NOT NULL, 
+	[Jalon_EstPrevisionnel_4]			Boolean NOT NULL, 
+	[Jalon_EstPrevisionnel_5]			Boolean NOT NULL, 
+	[Jalon_EstPrevisionnel_6]			Boolean NOT NULL, 
+	[Jalon_EstPrevisionnel_7]			Boolean NOT NULL, 
+	[Jalon_EstPrevisionnel_8]			Boolean NOT NULL, 
+	[Jalon_EstPrevisionnel_9]			Boolean NOT NULL, 
+	[Jalon_EstPrevisionnel_10]			Boolean NOT NULL, 
+	[Jalon_EstPrevisionnel_11]			Boolean NOT NULL, 
+	[Jalon_EstPrevisionnel_12]			Boolean NOT NULL, 
+	[Jalon_EstPrevisionnel_13]			Boolean NOT NULL, 
+	[Jalon_EstPrevisionnel_14]			Boolean NOT NULL, 
+	[Jalon_EstPrevisionnel_15]			Boolean NOT NULL, 
+	[Jalon_EstPrevisionnel_16]			Boolean NOT NULL, 
+	[Jalon_EstPrevisionnel_17]			Boolean NOT NULL, 
+	[Jalon_EstPrevisionnel_18]			Boolean NOT NULL, 
+	[Jalon_EstPrevisionnel_19]			Boolean NOT NULL, 
+	[Jalon_EstPrevisionnel_20]			Boolean NOT NULL, 
+	[Jalon_EstPrevisionnel_21]			Boolean NOT NULL, 
+	[Jalon_EstPrevisionnel_22]			Boolean NOT NULL, 
+	[Jalon_EstPrevisionnel_23]			Boolean NOT NULL, 
+	[Jalon_EstPrevisionnel_24]			Boolean NOT NULL, 
+	[Langue]			Text (5), 
+	[Projet]			Text (10), 
+	[Metier]			Text (50), 
+	[IdTypeEnvoi]			Long Integer
+);
+
+
+===== COUNT/SAMPLE import_raw =====
+Id,ImportUser,ImportTime,GroupeLigne,IndiceLigne,IdLeader,IdContPartenaire,IdCategorie,IdCategorieAT,IdDomaineBord,IdDomaineChargeur,IdFournisseur,IdTypeDoc,IdTypeDossier,IdOrigine,IdLogicielCAO,IdModeleCAO,QteEstimeeDocs,Revision,RevisionFournisseur,RefExt,EstConfidentiel,EstSecuritaire,RefExtParent,RefDocumentSource,IdResponsable,Livrable,RefRATP,EffMateriel,Poste,IdMetier,N_MF19,Nom,Sections,Categorie,DocumentsConnexes,CommentaireBT,Titre,Tranche,SiteEmetteur,NomsInformatiques,RefPDMdocFNR,RelecturePartenaire,IdPIC,IdPerimetre,DateResoumission,DelivrableProjet,LignePPDCouverteParAutreNumero,IdPicSupport,IdProduit,IdNiveauConfidentialite,IdNiveauCommunication,IdPourInfo_Acceptation,IdCoEditeur,idCategorieDoc,IdPreuveAutorisation,erreur,NouveauDocument,Homologuant,IdTypeCode,ligneEXCEL,Jalon_Nom_1,Jalon_Valeur_1,Jalon_Date_1,Jalon_Nom_2,Jalon_Valeur_2,Jalon_Date_2,Jalon_Nom_3,Jalon_Valeur_3,Jalon_Date_3,Jalon_Nom_4,Jalon_Valeur_4,Jalon_Date_4,Jalon_Nom_5,Jalon_Valeur_5,Jalon_Date_5,Jalon_Nom_6,Jalon_Valeur_6,Jalon_Date_6,Jalon_Nom_7,Jalon_Valeur_7,Jalon_Date_7,Jalon_Nom_8,Jalon_Valeur_8,Jalon_Date_8,Jalon_Nom_9,Jalon_Valeur_9,Jalon_Date_9,Jalon_Nom_10,Jalon_Valeur_10,Jalon_Date_10,Jalon_Nom_11,Jalon_Valeur_11,Jalon_Date_11,Jalon_Nom_12,Jalon_Valeur_12,Jalon_Date_12,Jalon_Nom_13,Jalon_Valeur_13,Jalon_Date_13,Jalon_Nom_14,Jalon_Valeur_14,Jalon_Date_14,Jalon_Nom_15,Jalon_Valeur_15,Jalon_Date_15,Jalon_Nom_16,Jalon_Valeur_16,Jalon_Date_16,Jalon_Nom_17,Jalon_Valeur_17,Jalon_Date_17,Jalon_Nom_18,Jalon_Valeur_18,Jalon_Date_18,Jalon_Nom_19,Jalon_Valeur_19,Jalon_Date_19,Jalon_Nom_20,Jalon_Valeur_20,Jalon_Date_20,Jalon_Nom_21,Jalon_Valeur_21,Jalon_Date_21,Jalon_Nom_22,Jalon_Valeur_22,Jalon_Date_22,Jalon_Nom_23,Jalon_Valeur_23,Jalon_Date_23,Jalon_Nom_24,Jalon_Valeur_24,Jalon_Date_24,Jalon_EstPrevisionnel_1,Jalon_EstPrevisionnel_2,Jalon_EstPrevisionnel_3,Jalon_EstPrevisionnel_4,Jalon_EstPrevisionnel_5,Jalon_EstPrevisionnel_6,Jalon_EstPrevisionnel_7,Jalon_EstPrevisionnel_8,Jalon_EstPrevisionnel_9,Jalon_EstPrevisionnel_10,Jalon_EstPrevisionnel_11,Jalon_EstPrevisionnel_12,Jalon_EstPrevisionnel_13,Jalon_EstPrevisionnel_14,Jalon_EstPrevisionnel_15,Jalon_EstPrevisionnel_16,Jalon_EstPrevisionnel_17,Jalon_EstPrevisionnel_18,Jalon_EstPrevisionnel_19,Jalon_EstPrevisionnel_20,Jalon_EstPrevisionnel_21,Jalon_EstPrevisionnel_22,Jalon_EstPrevisionnel_23,Jalon_EstPrevisionnel_24,Langue,Projet,Metier,IdTypeEnvoi
+57449,"201060195","06/30/26 14:54:06",36,"9351.3",2,,,30,4,1270,,,4,,,,,"A",,"CAF-ECH-007",0,0,"C.N8.63.155","SM ET.4-10640",835,"36 - Dossiers de Définition (DD) incluant l'aptitude au soutien des sous-syst Emes et des produits",,,"E",,,"Spécification de management","2.2.2.0",,,,"AXE CROCHET",,,,"CAF-ECH-007",,10,2,,1,,,,,,1,,0,,"Le champ Fournisseur 'OUEST INDUSTRIE' doit être un des choix de la table fournisseur
+",1,0,7322,16104,"JS0 30/06/2021",,,"T0TF-1mois",,,"JS1",,,"JS2",,,"JD1","FD",,"JD2.1",,,"JD2.2",,,"JP1.1",,,"JP1.2",,,"JP2.1.E1",,,"JP3.E1",,,"JP2.2",,,"JA1.1",,,"JP2.1.E2",,,"JA2.1",,,"JA1.2",,,"JP2.1.Ei",,,"JP3.Ei",,,"JA2.2",,,"JU1.1",,,"JU1.2",,,"JU2.E1",,,"JU2.Ei",,,,,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,"FR","MI20",,1
+57450,"201060195","06/30/26 14:54:09",36,"9351.4",2,,,30,4,1270,,,4,,,,,"A",,"CAF-ECH-021",0,0,"CAF-ECH-041","SM ET.4-10640",835,"36 - Dossiers de Définition (DD) incluant l'aptitude au soutien des sous-syst Emes et des produits",,,"E",,,"Spécification de management","2.2.2.0",,,,"SUPPORT PLOTS BAS",,,,"CAF-ECH-021",,10,2,,1,,,,,,1,,0,,"Le champ Fournisseur 'OUEST INDUSTRIE' doit être un des choix de la table fournisseur
+",1,0,7322,16105,"JS0 30/06/2021",,,"T0TF-1mois",,,"JS1",,,"JS2",,,"JD1","FD",,"JD2.1",,,"JD2.2",,,"JP1.1",,,"JP1.2",,,"JP2.1.E1",,,"JP3.E1",,,"JP2.2",,,"JA1.1",,,"JP2.1.E2",,,"JA2.1",,,"JA1.2",,,"JP2.1.Ei",,,"JP3.Ei",,,"JA2.2",,,"JU1.1",,,"JU1.2",,,"JU2.E1",,,"JU2.Ei",,,,,,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,"FR","MI20",,1
+rows: 926
+===== SCHEMA import_columns =====
+-- ----------------------------------------------------------
+-- MDB Tools - A library for reading MS Access database files
+-- Copyright (C) 2000-2011 Brian Bruns and others.
+-- Files in libmdb are licensed under LGPL and the utilities under
+-- the GPL, see COPYING.LIB and COPYING files respectively.
+-- Check out http://mdbtools.sourceforge.net
+-- ----------------------------------------------------------
+
+-- That file uses encoding UTF-8
+
+CREATE TABLE [import_columns]
+ (
+	[Id]			Long Integer NOT NULL, 
+	[col_table_document]			Text (120) NOT NULL, 
+	[titre_template_PPD]			Text (255) NOT NULL, 
+	[nature]			Text (80) NOT NULL, 
+	[table_associee]			Text (50), 
+	[AImporter]			Boolean NOT NULL, 
+	[table_dest]			Text (25)
+);
+
+
+===== COUNT/SAMPLE import_columns =====
+Id,col_table_document,titre_template_PPD,nature,table_associee,AImporter,table_dest
+1,"GroupeLigne","Num Liv.","LIGNE",,1,"document"
+2,"Livrable","Livrable de l'annexe 1 de la SM","T",,1,"document"
+3,"RefExt","Référence externe (Titulaire)","T",,1,"document"
+4,"Revision","Indice de révision","T",,1,"document"
+rows: 54
+===== SCHEMA import_compare =====
+-- ----------------------------------------------------------
+-- MDB Tools - A library for reading MS Access database files
+-- Copyright (C) 2000-2011 Brian Bruns and others.
+-- Files in libmdb are licensed under LGPL and the utilities under
+-- the GPL, see COPYING.LIB and COPYING files respectively.
+-- Check out http://mdbtools.sourceforge.net
+-- ----------------------------------------------------------
+
+-- That file uses encoding UTF-8
+
+CREATE TABLE [import_compare]
+ (
+	[Id]			Long Integer, 
+	[GroupeLigne]			Long Integer NOT NULL, 
+	[IndiceLigne]			Text (20) NOT NULL, 
+	[titre_fr]			Memo/Hyperlink (255) NOT NULL, 
+	[fieldName]			Text (255) NOT NULL, 
+	[fieldLabel]			Text (255) NOT NULL, 
+	[oldValue]			Memo/Hyperlink (255), 
+	[newValue]			Memo/Hyperlink (255), 
+	[isImported]			Boolean NOT NULL, 
+	[bx]			Text (255), 
+	[NouveauDocument]			Boolean NOT NULL, 
+	[table]			Text (255), 
+	[oldValue_brut]			Memo/Hyperlink (255), 
+	[newValue_brut]			Memo/Hyperlink (255), 
+	[oldEstPrevisionnel]			Boolean NOT NULL, 
+	[newEstPrevisionnel]			Boolean NOT NULL
+);
+
+
+===== COUNT/SAMPLE import_compare =====
+Id,GroupeLigne,IndiceLigne,titre_fr,fieldName,fieldLabel,oldValue,newValue,isImported,bx,NouveauDocument,table,oldValue_brut,newValue_brut,oldEstPrevisionnel,newEstPrevisionnel
+rows: 1
+===== SCHEMA import_revisions =====
+-- ----------------------------------------------------------
+-- MDB Tools - A library for reading MS Access database files
+-- Copyright (C) 2000-2011 Brian Bruns and others.
+-- Files in libmdb are licensed under LGPL and the utilities under
+-- the GPL, see COPYING.LIB and COPYING files respectively.
+-- Check out http://mdbtools.sourceforge.net
+-- ----------------------------------------------------------
+
+-- That file uses encoding UTF-8
+
+CREATE TABLE [import_revisions]
+ (
+	[ID]			Long Integer, 
+	[NumLivrable]			Text (255), 
+	[Revision]			Text (255), 
+	[Jalon]			Text (40), 
+	[version]			Text (255), 
+	[EstPrevisionnel]			Boolean NOT NULL, 
+	[DatePrevisionnelle]			Text (255)
+);
+
+
+===== COUNT/SAMPLE import_revisions =====
+ID,NumLivrable,Revision,Jalon,version,EstPrevisionnel,DatePrevisionnelle
+rows: 1
+===== SCHEMA import_columns_revisions =====
+-- ----------------------------------------------------------
+-- MDB Tools - A library for reading MS Access database files
+-- Copyright (C) 2000-2011 Brian Bruns and others.
+-- Files in libmdb are licensed under LGPL and the utilities under
+-- the GPL, see COPYING.LIB and COPYING files respectively.
+-- Check out http://mdbtools.sourceforge.net
+-- ----------------------------------------------------------
+
+-- That file uses encoding UTF-8
+
+CREATE TABLE [import_columns_revisions]
+ (
+	[Id]			Long Integer, 
+	[titre_template_revisions]			Text (120) NOT NULL, 
+	[col_table_revision]			Text (255) NOT NULL, 
+	[nature]			Text (80) NOT NULL, 
+	[AImporter]			Boolean NOT NULL
+);
+
+
+===== COUNT/SAMPLE import_columns_revisions =====
+Id,titre_template_revisions,col_table_revision,nature,AImporter
+43,"NumLivrable","NumLivrable","T",1
+44,"Revision","Revision","T",1
+45,"Jalon","Jalon","T",1
+46,"Version","Version","T",1
+rows: 7
+===== SCHEMA import_programmation_jalon =====
+-- ----------------------------------------------------------
+-- MDB Tools - A library for reading MS Access database files
+-- Copyright (C) 2000-2011 Brian Bruns and others.
+-- Files in libmdb are licensed under LGPL and the utilities under
+-- the GPL, see COPYING.LIB and COPYING files respectively.
+-- Check out http://mdbtools.sourceforge.net
+-- ----------------------------------------------------------
+
+-- That file uses encoding UTF-8
+
+CREATE TABLE [import_programmation_jalon]
+ (
+	[Id]			Long Integer, 
+	[IdDocument]			Long Integer NOT NULL, 
+	[IdJalon]			Long Integer NOT NULL, 
+	[IdVersion]			Long Integer NOT NULL, 
+	[EstPrevisionnel]			Boolean NOT NULL, 
+	[DatePrevisionnelle]			DateTime, 
+	[Version]			Text (80), 
+	[Code]			Text (40), 
+	[Revision]			Text (12)
+);
+
+
+===== COUNT/SAMPLE import_programmation_jalon =====
+Id,IdDocument,IdJalon,IdVersion,EstPrevisionnel,DatePrevisionnelle,Version,Code,Revision
+535,57449,5,2,0,,"FD","JD1","5"
+536,57450,5,2,0,,"FD","JD1","5"
+537,57451,5,2,0,,"FD","JD1","5"
+538,57452,5,2,0,,"FD","JD1","5"
+rows: 647
+===== SCHEMA import_bilan_envois =====
+-- ----------------------------------------------------------
+-- MDB Tools - A library for reading MS Access database files
+-- Copyright (C) 2000-2011 Brian Bruns and others.
+-- Files in libmdb are licensed under LGPL and the utilities under
+-- the GPL, see COPYING.LIB and COPYING files respectively.
+-- Check out http://mdbtools.sourceforge.net
+-- ----------------------------------------------------------
+
+-- That file uses encoding UTF-8
+
+CREATE TABLE [import_bilan_envois]
+ (
+	[ID]			Long Integer, 
+	[LeaderTechnique]			Text (255), 
+	[Réference externe]			Text (255), 
+	[Indice externe]			Text (255), 
+	[Titre]			Memo/Hyperlink (255), 
+	[Jalon]			Text (255), 
+	[VersionEnvoyee]			Text (255), 
+	[Bordereau]			Text (255), 
+	[DateEnvoiTitulaire]			DateTime, 
+	[DateReceptionRATP]			DateTime, 
+	[DatePrevReceptionFA]			DateTime, 
+	[DateStatutRATP]			DateTime, 
+	[StatutRATP]			Text (255), 
+	[NumLotRATP]			Text (255), 
+	[numFA]			Text (50), 
+	[DateEnvoiFACAF]			DateTime, 
+	[DateReponseFATitulaire]			DateTime, 
+	[ReponseFicheAvis]			Memo/Hyperlink (255), 
+	[NbTotalRemarquesRATP]			Double, 
+	[ARM (Mineure)]			Long Integer, 
+	[R]			Double, 
+	[AR]			Long Integer, 
+	[ARF]			Long Integer, 
+	[AutresCom]			Long Integer, 
+	[NumLivrable]			Text (50), 
+	[CommentairesSupSurRetourRATP]			Memo/Hyperlink (255), 
+	[RefuseAuChargement]			Text (50), 
+	[Document_pere]			Memo/Hyperlink (255), 
+	[Dernier_envoi]			Text (5)
+);
+
+
+===== COUNT/SAMPLE import_bilan_envois =====
+ID,LeaderTechnique,Réference externe,Indice externe,Titre,Jalon,VersionEnvoyee,Bordereau,DateEnvoiTitulaire,DateReceptionRATP,DatePrevReceptionFA,DateStatutRATP,StatutRATP,NumLotRATP,numFA,DateEnvoiFACAF,DateReponseFATitulaire,ReponseFicheAvis,NbTotalRemarquesRATP,ARM (Mineure),R,AR,ARF,AutresCom,NumLivrable,CommentairesSupSurRetourRATP,RefuseAuChargement,Document_pere,Dernier_envoi
+45157,"Lead tech.","Référence externe","Indice externe","Titre","Jalon","Version","Bordereau",,,,,,"N° du Lot RATP","N°FA",,,"Réponse à fiche d''avis",,0,,0,0,0,"Num Liv.",,,"Filiation bx",
+45158,"CAF","C.N8.45.300","A","MONTAGE ISOLATION CABINE","JD1","FD","MI20_BORD_CAF_0938","01/12/26 00:00:00","01/12/26 00:00:00","02/11/26 00:00:00","02/13/26 00:00:00",,"050845,0.1.1","FA-C.N8.45.300-A",,,,0,0,0,,0,0,"36,476",,,,"OUI"
+45159,"CAF","C.N8.45.301","0","ISOLATION","JD1","FD","MI20_BORD_CAF_0938","01/12/26 00:00:00","01/12/26 00:00:00","02/11/26 00:00:00","02/13/26 00:00:00",,"050845,0.1.1","FA-C.N8.45.301-0",,"03/15/26 00:00:00",,1,0,1,,0,0,"36,7506",,,,"OUI"
+45160,"CAF","C.N8.45.361","0","ISOLATION","JD1","FD","MI20_BORD_CAF_0938","01/12/26 00:00:00","01/12/26 00:00:00","02/11/26 00:00:00","02/13/26 00:00:00",,"050845,0.1.1","FA-C.N8.45.361-0",,"03/15/26 00:00:00",,1,0,1,,0,0,"36,751",,,,"OUI"
+rows: 21
+===== SCHEMA import_columns_bilan_envois =====
+-- ----------------------------------------------------------
+-- MDB Tools - A library for reading MS Access database files
+-- Copyright (C) 2000-2011 Brian Bruns and others.
+-- Files in libmdb are licensed under LGPL and the utilities under
+-- the GPL, see COPYING.LIB and COPYING files respectively.
+-- Check out http://mdbtools.sourceforge.net
+-- ----------------------------------------------------------
+
+-- That file uses encoding UTF-8
+
+CREATE TABLE [import_columns_bilan_envois]
+ (
+	[Id]			Long Integer NOT NULL, 
+	[titre_template_bilan_envois]			Text (120) NOT NULL, 
+	[col_table_bilan_envois]			Text (255) NOT NULL, 
+	[nature]			Text (80) NOT NULL, 
+	[AImporter]			Boolean NOT NULL
+);
+
+
+===== COUNT/SAMPLE import_columns_bilan_envois =====
+Id,titre_template_bilan_envois,col_table_bilan_envois,nature,AImporter
+0,"Dernier Envoi","Dernier Envoi","DERNIER_ENVOI",0
+10,"Lead tech.","LeaderTechnique","T",0
+20,"Référence externe","Réference externe","T",0
+25,"Indice externe","Indice externe","T",0
+rows: 26

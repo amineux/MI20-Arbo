@@ -1,5 +1,4 @@
 import {
-  Body1,
   Button,
   Dropdown,
   Input,
@@ -10,16 +9,17 @@ import {
   TableHeader,
   TableHeaderCell,
   TableRow,
-  Title3,
 } from "@fluentui/react-components";
 import { useEffect, useState } from "react";
 import { api } from "../api";
+import { PageHeader, useToast } from "../ui";
 
 export function LookupsPage() {
   const [tables, setTables] = useState<Array<{ table_key: string; label_fr: string }>>([]);
   const [table, setTable] = useState("fournisseur");
   const [rows, setRows] = useState<Array<{ id: number; nom: string }>>([]);
   const [nom, setNom] = useState("");
+  const { toast } = useToast();
 
   const load = (t: string) => api.get<{ rows: Array<{ id: number; nom: string }> }>(`/api/lookups/${t}`).then((r) => setRows(r.rows));
 
@@ -30,8 +30,9 @@ export function LookupsPage() {
 
   return (
     <div>
-      <Title3>Référentiels</Title3>
-      <Body1>Tables de lookup Access (affichage Nom, rapprochement UCase(Trim(Nom)) à l&apos;import PPD).</Body1>
+      <PageHeader title="Référentiels" form="tables LDD">
+        Affichage Nom. Rapprochement import PPD : <code>UCase(Trim(Nom))</code>. CRUD Nom uniquement.
+      </PageHeader>
       <div style={{ display: "flex", gap: 8, margin: "16px 0", flexWrap: "wrap" }}>
         <Dropdown
           style={{ minWidth: 260 }}
@@ -56,6 +57,7 @@ export function LookupsPage() {
             await api.post(`/api/lookups/${table}`, { nom });
             setNom("");
             load(table);
+            toast("success", "Ligne ajoutée", nom);
           }}
         >
           Ajouter

@@ -4,6 +4,7 @@ import {
   Checkbox,
   MessageBar,
   MessageBarBody,
+  MessageBarTitle,
   Spinner,
   Tab,
   TabList,
@@ -13,11 +14,11 @@ import {
   TableHeader,
   TableHeaderCell,
   TableRow,
-  Title3,
 } from "@fluentui/react-components";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
+import { PageHeader, useToast } from "../ui";
 
 interface BatchInfo {
   batch: Record<string, unknown>;
@@ -30,17 +31,22 @@ interface BatchInfo {
 export function ImportPpdPage() {
   const { batchId } = useParams();
   const nav = useNavigate();
+  const { toast } = useToast();
   const [rapide, setRapide] = useState(true);
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<"compare" | "new" | "err">("compare");
-  const [result, setResult] = useState<{ batchId: number; rowCount: number; errorCount: number; diffCount: number; newCount: number } | null>(
-    null,
-  );
+  const [result, setResult] = useState<{
+    batchId: number;
+    rowCount: number;
+    errorCount: number;
+    diffCount: number;
+    newCount: number;
+  } | null>(null);
   const [detail, setDetail] = useState<BatchInfo | null>(null);
   const [applyMsg, setApplyMsg] = useState<string | null>(null);
 
   const load = (id: number) => {
-    api.get<BatchInfo>(`/api/imports/${id}`).then(setDetail);
+    api.get<BatchInfo>(`/api/imports/${id}`).then(setDetail).catch((e: Error) => toast("error", "Import", e.message));
   };
 
   const runDemo = async (file?: string) => {
@@ -57,10 +63,13 @@ export function ImportPpdPage() {
         newCount: number;
       }>(`/api/imports/ppd/demo?${q}`);
       setResult(r);
+      toast("success", "PPD chargé", `${r.rowCount} lignes · ${r.diffCount} écarts · ${r.errorCount} erreur(s) LDD`);
       nav(`/import-ppd/${r.batchId}`);
       load(r.batchId);
     } catch (err) {
-      setApplyMsg(err instanceof Error ? err.message : "Erreur import");
+      const msg = err instanceof Error ? err.message : "Erreur import";
+      setApplyMsg(msg);
+      toast("error", "Import PPD", msg);
     } finally {
       setBusy(false);
     }
@@ -72,11 +81,11 @@ export function ImportPpdPage() {
 
   return (
     <div>
-      <Title3>Import PPD</Title3>
-      <Body1>
-        Pipeline Access ImportPPD : Excel officiel (SheetJS) → import_raw → comparaison → application. Démo par défaut :{" "}
-        <b>fixtures/Import_Rapide_exemple.xlsx</b> (Nr Livrable). Complet : PPD_Template.xlsx (Num Liv.).
-      </Body1>
+      <PageHeader title="Import PPD" form="ImportPPD / ImportPPD_Rapide / ImportPPD_Jalons_Rapide">
+        Pipeline Access : Excel officiel (SheetJS) → import_raw → comparaison → application. Défaut :{" "}
+        <b>Import_Rapide_exemple.xlsx</b> (Nr Livrable). Complet : PPD_Template (Num Liv.). Lignes en erreur LDD{" "}
+        <code>UCase(Trim(Nom))</code> sont listées et ignorées à l&apos;application.
+      </PageHeader>
       <div style={{ display: "flex", gap: 12, alignItems: "center", margin: "16px 0", flexWrap: "wrap" }}>
         <input
           type="file"
@@ -98,10 +107,13 @@ export function ImportPpdPage() {
                 newCount: number;
               }>(`/api/imports/ppd?rapide=${rapide}`, fd);
               setResult(r);
+              toast("success", "Fichier importé", `${r.rowCount} lignes`);
               nav(`/import-ppd/${r.batchId}`);
               load(r.batchId);
             } catch (err) {
-              setApplyMsg(err instanceof Error ? err.message : "Erreur import");
+              const msg = err instanceof Error ? err.message : "Erreur import";
+              setApplyMsg(msg);
+              toast("error", "Import PPD", msg);
             } finally {
               setBusy(false);
             }
@@ -119,40 +131,63 @@ export function ImportPpdPage() {
       {result ? (
         <MessageBar intent="success">
           <MessageBarBody>
-            Lot {result.batchId} — {result.rowCount} lignes, {result.diffCount} écarts, {result.newCount} nouveaux,{" "}
-            {result.errorCount} erreur(s) de lookup.
+            <MessageBarTitle>Lot {result.batchId}</MessageBarTitle>
+            {result.rowCount} lignes, {result.diffCount} écarts, {result.newCount} nouveaux, {result.errorCount}{" "}
+            erreur(s) de lookup LDD.
           </MessageBarBody>
         </MessageBar>
       ) : null}
-      {applyMsg ? <Body1>{applyMsg}</Body1> : null}
+      {applyMsg ? (
+        <MessageBar intent="error">
+          <MessageBarBody>{applyMsg}</MessageBarBody>
+        </MessageBar>
+      ) : null}
       {detail ? (
         <>
           <TabList selectedValue={tab} onTabSelect={(_, d) => setTab(d.value as typeof tab)} style={{ marginTop: 16 }}>
             <Tab value="compare">Comparaison ({detail.compare.length})</Tab>
             <Tab value="new">Nouveaux documents ({detail.nouveaux.length})</Tab>
-            <Tab value="err">Erreurs ({detail.errors.length})</Tab>
+            <Tab value="err">Erreurs LDD ({detail.errors.length})</Tab>
           </TabList>
           {tab === "compare" ? <DiffTable rows={detail.compare} /> : null}
           {tab === "new" ? <DiffTable rows={detail.nouveaux} /> : null}
           {tab === "err" ? <ErrorTable rows={detail.errors} /> : null}
+          {detail.errors.length ? (
+            <Body1 style={{ marginTop: 8 }}>
+              Les lignes en erreur (lookup fournisseur / LDD) ne seront pas appliquées — comme InsertValidatedChanges.
+            </Body1>
+          ) : null}
           <Button
             appearance="primary"
             style={{ marginTop: 16 }}
             onClick={async () => {
               const id = Number(batchId ?? result?.batchId);
-              const r = await api.post<{ appliedDocuments: number; appliedJalons: number }>(`/api/imports/${id}/apply`);
-              setApplyMsg(`Application : ${r.appliedDocuments} document(s), ${r.appliedJalons} jalon(s). Lignes en erreur ignorées.`);
+              try {
+                const r = await api.post<{ appliedDocuments: number; appliedJalons: number }>(
+                  `/api/imports/${id}/apply`,
+                );
+                const msg = `Application : ${r.appliedDocuments} document(s), ${r.appliedJalons} jalon(s). Lignes en erreur ignorées.`;
+                setApplyMsg(msg);
+                toast("success", "Import appliqué", msg);
+              } catch (e) {
+                toast("error", "Application", e instanceof Error ? e.message : "échec");
+              }
             }}
           >
             Appliquer les modifications validées (sans erreur)
           </Button>
         </>
-      ) : null}
+      ) : (
+        <Body1 style={{ marginTop: 8 }}>Cliquez « Charger Import_Rapide_exemple.xlsx » pour le parcours démo.</Body1>
+      )}
     </div>
   );
 }
 
 function DiffTable({ rows }: { rows: Array<Record<string, unknown>> }) {
+  if (!rows.length) {
+    return <Body1 style={{ marginTop: 12 }}>Aucun écart sur cet onglet.</Body1>;
+  }
   return (
     <Table size="small">
       <TableHeader>
@@ -180,6 +215,9 @@ function DiffTable({ rows }: { rows: Array<Record<string, unknown>> }) {
 }
 
 function ErrorTable({ rows }: { rows: Array<Record<string, unknown>> }) {
+  if (!rows.length) {
+    return <Body1 style={{ marginTop: 12 }}>Aucune erreur LDD sur ce lot.</Body1>;
+  }
   return (
     <Table size="small">
       <TableHeader>

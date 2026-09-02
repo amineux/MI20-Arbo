@@ -97,10 +97,12 @@ export interface DemoState {
   importCompare: Array<Record<string, unknown>>;
   bordereaux: Array<Record<string, unknown>>;
   envois: Array<Record<string, unknown>>;
+  revisions: Array<Record<string, unknown>>;
+  ratpReturns: Array<Record<string, unknown>>;
   files: Record<string, { type: string; b64: string }>;
 }
 
-const STORAGE_KEY = "mi20-arbo-static-demo-v1";
+const STORAGE_KEY = "mi20-arbo-static-demo-v2";
 
 function alloc(state: DemoState): number {
   const id = state.nextId;
@@ -131,6 +133,8 @@ export function createSeedState(): DemoState {
     importCompare: [],
     bordereaux: [],
     envois: [],
+    revisions: [],
+    ratpReturns: [],
     files: {},
   };
 

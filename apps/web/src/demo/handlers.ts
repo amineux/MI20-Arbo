@@ -4,7 +4,7 @@ import {
   DEFAULT_RAPIDE_FIXTURE,
   JALONS_RAPIDE_FIXTURE,
   OFFICIAL_TEMPLATES,
-  PPD_TEMPLATE_FILE,
+  PPD_TEMPLATE_SMALL_FILE,
   computeDifferences,
   fillOfficialPpdTemplate,
   isOfficialTemplateName,
@@ -29,12 +29,6 @@ import {
 } from "./store";
 import { zipStore } from "./zip";
 
-const fixtureUrls = import.meta.glob("../../../../fixtures/*.{xlsx,xls,xlsm}", {
-  query: "?url",
-  import: "default",
-  eager: true,
-}) as Record<string, string>;
-
 export class DemoHttpError extends Error {
   constructor(
     message: string,
@@ -46,16 +40,20 @@ export class DemoHttpError extends Error {
 
 const columns: ImportColumn[] = parseImportColumnsCsv(importColumnsCsv);
 
-function fixtureUrl(fileName: string): string {
-  const hit = Object.entries(fixtureUrls).find(([path]) => path.replace(/\\/g, "/").endsWith(`/${fileName}`));
-  if (!hit) throw new DemoHttpError(`Fixture ${fileName} introuvable`, 404);
-  return hit[1];
+function origFetch(): typeof fetch {
+  const w = window as unknown as { __mi20OrigFetch?: typeof fetch };
+  return w.__mi20OrigFetch ?? window.fetch.bind(window);
+}
+
+function fixtureHref(fileName: string): string {
+  const base = import.meta.env.BASE_URL.endsWith("/") ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
+  return `${base}demo-fixtures/${fileName}`;
 }
 
 async function loadFixtureBytes(fileName: string): Promise<Uint8Array> {
   if (!isOfficialTemplateName(fileName)) throw new DemoHttpError("Fichier template non autorisé", 400);
-  const res = await fetch(fixtureUrl(fileName));
-  if (!res.ok) throw new DemoHttpError(`Fixture ${fileName} introuvable`, 404);
+  const res = await origFetch()(fixtureHref(fileName));
+  if (!res.ok) throw new DemoHttpError(`Fixture ${fileName} introuvable (${res.status})`, 404);
   return new Uint8Array(await res.arrayBuffer());
 }
 
@@ -616,9 +614,9 @@ export async function handleDemoApi(url: URL, init?: RequestInit): Promise<Respo
       IndiceLigne: snap.indiceLigne,
       jalons: snap.jalons.map((j) => ({ nom: j.code, valeur: j.valeur, date: j.date })),
     }));
-    const template = await loadFixtureBytes(PPD_TEMPLATE_FILE);
     let buf: Uint8Array;
     try {
+      const template = await loadFixtureBytes(PPD_TEMPLATE_SMALL_FILE);
       buf = toUint8(
         fillOfficialPpdTemplate({
           templateBuffer: template,
@@ -767,9 +765,42 @@ export async function handleDemoApi(url: URL, init?: RequestInit): Promise<Respo
     return binary(zip, "application/zip", `${bx.NomComplet}.zip`);
   }
 
-  if (path === "/api/revisions" && method === "GET") return json({ rows: [], stub: true, accessForm: "Form_CREATE_REV" });
+  if (path === "/api/revisions" && method === "GET") {
+    return json({ rows: s.revisions, stub: true, accessForm: "Form_CREATE_REV" });
+  }
+  if (path === "/api/revisions" && method === "POST") {
+    const body = await readJson(init);
+    const id = nextId();
+    const row = {
+      Id: id,
+      Revision: String(body.revision ?? "A"),
+      IdDocument: body.idDocument ?? null,
+      NomUtilisateur: "demo.user",
+      EstActive: 1,
+      Commentaire: body.commentaire ?? null,
+      CreatedAt: new Date().toISOString(),
+    };
+    s.revisions.push(row);
+    saveState();
+    return json(row);
+  }
   if (path === "/api/ratp-returns" && method === "GET") {
-    return json({ rows: [], stub: true, accessForm: "Form_SaisieRetoursRATP" });
+    return json({ rows: s.ratpReturns, stub: true, accessForm: "Form_SaisieRetoursRATP" });
+  }
+  if (path === "/api/ratp-returns" && method === "POST") {
+    const body = await readJson(init);
+    const id = nextId();
+    const row = {
+      Id: id,
+      IdDocument: body.idDocument ?? null,
+      Avis: String(body.avis ?? "FA"),
+      Commentaire: String(body.commentaire ?? ""),
+      NomUtilisateur: "demo.user",
+      CreatedAt: new Date().toISOString(),
+    };
+    s.ratpReturns.push(row);
+    saveState();
+    return json(row);
   }
   if (path === "/api/kpi" && method === "GET") {
     return json({ stub: true, templates: OFFICIAL_TEMPLATES.filter((t) => ["kpi", "bilan", "docts"].includes(t.role)) });

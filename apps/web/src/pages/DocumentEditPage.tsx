@@ -2,6 +2,7 @@ import { Body1, Button, Field, Input, Spinner, Textarea, Title3, Checkbox } from
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
+import { PageHeader, useToast } from "../ui";
 
 export function DocumentEditPage() {
   const { id } = useParams();
@@ -10,6 +11,7 @@ export function DocumentEditPage() {
   const [jalons, setJalons] = useState<Array<Record<string, unknown>>>([]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     api
@@ -27,10 +29,9 @@ export function DocumentEditPage() {
   return (
     <div>
       <Button onClick={() => nav("/documents")}>← Liste</Button>
-      <Title3>
-        Document {String(doc.GroupeLigne)} / {String(doc.IndiceLigne)}
-      </Title3>
-      <Body1>Form_EDIT_DOC — livrable / document.</Body1>
+      <PageHeader title={`Document ${String(doc.GroupeLigne)} / ${String(doc.IndiceLigne)}`} form="Form_EDIT_DOC">
+        Livrable / document — enregistrement écrit doc_histo.
+      </PageHeader>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 16, maxWidth: 960 }}>
         <Field label="Référence externe">
           <Input value={String(doc.RefExt ?? "")} onChange={(_, d) => set("RefExt", d.value)} />
@@ -89,6 +90,7 @@ export function DocumentEditPage() {
             try {
               await api.put(`/api/documents/${id}`, doc);
               setMsg("Enregistré.");
+              toast("success", "Document enregistré");
             } catch (e) {
               setMsg(e instanceof Error ? e.message : "Erreur");
             } finally {

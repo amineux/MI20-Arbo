@@ -56,36 +56,24 @@ Optional Docker (API + SQLite volume):
 docker compose up --build
 ```
 
-## SharePoint host path (what to do next)
+## SharePoint host (Alstom)
 
-Teammates should open a **SharePoint site page**, not Access.
+Teammates open a **site page** on this library, not Access.
 
-### Option A — SPFx web part (recommended)
+| | |
+|---|---|
+| Site | [https://alstomgroup.sharepoint.com/sites/BT_BTPIIMaroc-GestionDoc](https://alstomgroup.sharepoint.com/sites/BT_BTPIIMaroc-GestionDoc) |
+| Folder | `Shared Documents/Gestion Doc/MI20` |
+| Embed page | `SitePages/MI20-Arbo.aspx` on that site |
+| API env | `SHAREPOINT_SITE_URL` (that site) · `SHAREPOINT_DRIVE_PATH=/GestionDoc/MI20` |
 
-1. Host the SPA + API on HTTPS (Azure App Service is simplest: build `apps/web` and serve `dist` from the API, or split Static Web Apps + API).
-2. Set `VITE_API_URL` at SPA build time to the public API origin if the SPA is not same-origin.
-3. Allow the SPA to be framed: send  
-   `Content-Security-Policy: frame-ancestors https://*.sharepoint.com https://*.sharepoint-df.com 'self'`
-4. Package the web part (Node **18**):
+Step-by-step (Azure HTTPS + Entra for **alstomgroup.com**, `frame-ancestors` for `*.sharepoint.com`, **Embed** web part vs SPFx App Catalog, Graph root for `EXPORT_PPD` / `EXPORT_BX`): **[`docs/DEPLOY_SHAREPOINT.md`](docs/DEPLOY_SHAREPOINT.md)**.
 
-   ```bash
-   cd spfx
-   nvm use 18
-   npm install
-   gulp bundle --ship
-   gulp package-solution --ship
-   ```
-
-5. Upload `spfx/sharepoint/solution/mi20-arbo.sppkg` to the **tenant App Catalog**.
-6. Add the app to the site. Edit a page → insert **MI20 Arbo** → property **URL de l'application** = `https://<your-spa>`.
-
-Details: [`spfx/README.md`](spfx/README.md).
-
-### Option B — stock Embed web part
-
-Same SPA URL in the SharePoint **Embed** / iframe web part. No App Catalog, but less control over chrome.
+SPFx package notes: [`spfx/README.md`](spfx/README.md). Tenant App Catalog often needs IT; the stock **Embed** web part pointing at the SPA URL does not.
 
 ## Entra ID (Azure AD) checklist
+
+Register apps in the **alstomgroup.com** tenant (full Azure + consent steps: [`docs/DEPLOY_SHAREPOINT.md`](docs/DEPLOY_SHAREPOINT.md)).
 
 1. App registration **SPA** (apps/web): redirect URI `https://<spa>/`, expose nothing (public client). Enable ID tokens if using MSAL popup/redirect.
 2. App registration **API** (apps/api): expose scope `access_as_user` (`api://<api-id>/access_as_user`).

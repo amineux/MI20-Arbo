@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { loadBundledImportColumns } from "../src/columns.js";
+import { loadBundledImportColumns } from "../src/columns-fs.js";
 import { DEFAULT_PPD_CONFIG } from "../src/types.js";
 import { parsePpdSheet } from "../src/parse-workbook.js";
 import { parseWorkbookToAoa, fillOfficialPpdTemplate } from "../src/xlsx-io.js";

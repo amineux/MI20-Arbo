@@ -6,6 +6,22 @@ Inspired by that Access app. This is an independent work tool for the project te
 
 Source of truth for modules and mappings: [`docs/handoff/`](docs/handoff/TEKKY_BASE_ARBO_HANDOFF.md). Screen checklist: [`docs/MODULES.md`](docs/MODULES.md).
 
+## Temporary public demo (not Alstom production)
+
+Shareable HTTPS test link (GitHub Pages, no Entra, no SharePoint):
+
+**https://amineux.github.io/MI20-Arbo/**
+
+In-browser demo of Documents, Import PPD (SheetJS + official `fixtures/`), Export PPD, Bordereaux, and lookups. State lives in `localStorage`. This is **not** the Alstom production path — that remains Azure + Entra + site `BT_BTPIIMaroc-GestionDoc` ([`docs/DEPLOY_SHAREPOINT.md`](docs/DEPLOY_SHAREPOINT.md)).
+
+Rebuild locally:
+
+```bash
+VITE_STATIC_DEMO=true VITE_BASE=/MI20-Arbo/ npm run build:pages
+```
+
+Workflow: [`.github/workflows/pages.yml`](.github/workflows/pages.yml) (deploys on `main`).
+
 ## Architecture
 
 ```

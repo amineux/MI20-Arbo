@@ -13,8 +13,24 @@ export function sheetFromMatrix(rows: unknown[][]): XLSX.WorkSheet {
   return XLSX.utils.aoa_to_sheet(rows);
 }
 
+function toUint8(data: Buffer | ArrayBuffer | Uint8Array): Uint8Array {
+  if (data instanceof ArrayBuffer) return new Uint8Array(data);
+  if (data instanceof Uint8Array) return data;
+  return new Uint8Array(data);
+}
+
+function workbookFromBytes(data: Buffer | ArrayBuffer | Uint8Array): XLSX.WorkBook {
+  return XLSX.read(toUint8(data), { type: "array", cellDates: true });
+}
+
+function writeXlsxBuffer(wb: XLSX.WorkBook): Buffer {
+  const arr = XLSX.write(wb, { type: "array", bookType: "xlsx" }) as Uint8Array;
+  if (typeof Buffer !== "undefined") return Buffer.from(arr);
+  return arr as unknown as Buffer;
+}
+
 export function parseWorkbookToAoa(buffer: Buffer | ArrayBuffer | Uint8Array): unknown[][] {
-  const wb = XLSX.read(buffer, { type: "buffer", cellDates: true });
+  const wb = workbookFromBytes(buffer);
   const name = wb.SheetNames[0];
   if (!name) throw new Error("Classeur Excel vide");
   const preferred =
@@ -80,7 +96,7 @@ export function buildPpdExportWorkbook(args: {
   }
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "PPD");
-  return Buffer.from(XLSX.write(wb, { type: "buffer", bookType: "xlsx" }));
+  return writeXlsxBuffer(wb);
 }
 
 function hideColumn(ws: XLSX.WorkSheet, letter: string): void {
@@ -97,14 +113,14 @@ export function excelColumnLetter(index1Based: number): string {
 
 /** Fill official PPD_Template.xlsx (or Copie_de_PPD_Template.xlsx) instead of inventing a workbook. */
 export function fillOfficialPpdTemplate(args: {
-  templateBuffer: Buffer;
+  templateBuffer: Buffer | ArrayBuffer | Uint8Array;
   documents: Array<Record<string, unknown>>;
   columns: ImportColumn[];
   config?: PpdConfig;
   maskRatp?: boolean;
 }): Buffer {
   const config = args.config ?? DEFAULT_PPD_CONFIG;
-  const wb = XLSX.read(args.templateBuffer, { type: "buffer", cellDates: true });
+  const wb = workbookFromBytes(args.templateBuffer);
   const sheetName =
     wb.SheetNames.find((n) => n.toUpperCase() === "PPD") ??
     wb.SheetNames.find((n) => n.toUpperCase().includes("PPD")) ??
@@ -153,7 +169,7 @@ export function fillOfficialPpdTemplate(args: {
     });
   }
   wb.Sheets[sheetName] = ws;
-  return Buffer.from(XLSX.write(wb, { type: "buffer", bookType: "xlsx" }));
+  return writeXlsxBuffer(wb);
 }
 
 export { cellToText };

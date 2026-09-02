@@ -16,7 +16,8 @@
     "dev:api": "npm run dev -w @mi20/api",
     "dev:web": "npm run dev -w @mi20/web",
     "start": "npm run start -w @mi20/api",
-    "seed:fixture": "npm run seed:fixture -w @mi20/domain"
+    "seed:fixture": "npm run seed:fixture -w @mi20/domain",
+    "build:pages": "npm run build:pages -w @mi20/web"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

@@ -30,7 +30,7 @@ interface BatchInfo {
 export function ImportPpdPage() {
   const { batchId } = useParams();
   const nav = useNavigate();
-  const [rapide, setRapide] = useState(false);
+  const [rapide, setRapide] = useState(true);
   const [busy, setBusy] = useState(false);
   const [tab, setTab] = useState<"compare" | "new" | "err">("compare");
   const [result, setResult] = useState<{ batchId: number; rowCount: number; errorCount: number; diffCount: number; newCount: number } | null>(
@@ -43,6 +43,29 @@ export function ImportPpdPage() {
     api.get<BatchInfo>(`/api/imports/${id}`).then(setDetail);
   };
 
+  const runDemo = async (file?: string) => {
+    setBusy(true);
+    setApplyMsg(null);
+    try {
+      const q = new URLSearchParams({ rapide: String(rapide || file === "Import_Rapide_Jalons.xlsx") });
+      if (file) q.set("file", file);
+      const r = await api.post<{
+        batchId: number;
+        rowCount: number;
+        errorCount: number;
+        diffCount: number;
+        newCount: number;
+      }>(`/api/imports/ppd/demo?${q}`);
+      setResult(r);
+      nav(`/import-ppd/${r.batchId}`);
+      load(r.batchId);
+    } catch (err) {
+      setApplyMsg(err instanceof Error ? err.message : "Erreur import");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   useEffect(() => {
     if (batchId) load(Number(batchId));
   }, [batchId]);
@@ -51,8 +74,8 @@ export function ImportPpdPage() {
     <div>
       <Title3>Import PPD</Title3>
       <Body1>
-        Pipeline Access ImportPPD : Excel (SheetJS, pas COM) → import_raw → Form_import_compare / Form_import_nouveaux_docs
-        → application document + programmation_jalon. Première colonne : Num Liv. (complet) ou Nr Livrable (rapide).
+        Pipeline Access ImportPPD : Excel officiel (SheetJS) → import_raw → comparaison → application. Démo par défaut :{" "}
+        <b>fixtures/Import_Rapide_exemple.xlsx</b> (Nr Livrable). Complet : PPD_Template.xlsx (Num Liv.).
       </Body1>
       <div style={{ display: "flex", gap: 12, alignItems: "center", margin: "16px 0", flexWrap: "wrap" }}>
         <input
@@ -85,6 +108,12 @@ export function ImportPpdPage() {
           }}
         />
         <Checkbox checked={rapide} label="Import rapide (Nr Livrable)" onChange={(_, d) => setRapide(!!d.checked)} />
+        <Button appearance="primary" disabled={busy} onClick={() => runDemo()}>
+          Charger Import_Rapide_exemple.xlsx
+        </Button>
+        <Button disabled={busy} onClick={() => runDemo("Import_Rapide_Jalons.xlsx")}>
+          Charger Import_Rapide_Jalons.xlsx
+        </Button>
         {busy ? <Spinner size="tiny" /> : null}
       </div>
       {result ? (

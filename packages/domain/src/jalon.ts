@@ -56,7 +56,7 @@ export function unpivotJalons(
     const estPrevisionnel = !valeur && !!date;
     slots.push({
       index: i + 1,
-      nom: header,
+      nom: jalonCodeFromHeader(header) || header,
       valeur,
       date,
       estPrevisionnel,
@@ -65,13 +65,18 @@ export function unpivotJalons(
   return slots;
 }
 
+export function jalonCodeFromHeader(header: string): string {
+  const t = header.replace(/\u00a0/g, " ").trim();
+  if (!t) return "";
+  return (t.split(/[\s=]/)[0] ?? t).trim();
+}
+
 export function matchJalonDef(slot: JalonSlot, jalons: JalonDef[]): JalonDef | undefined {
-  const candidates = [slot.nom, slot.nom.split(/\s+/)[0] ?? ""].filter(Boolean);
+  const fromHeader = jalonCodeFromHeader(slot.nom);
+  const candidates = [slot.nom, fromHeader, slot.nom.split(/\s+/)[0] ?? ""].filter(Boolean);
   const upper = (s: string) => s.trim().toUpperCase();
   for (const c of candidates) {
-    const hit = jalons.find(
-      (j) => upper(j.code) === upper(c) || upper(j.nom) === upper(c),
-    );
+    const hit = jalons.find((j) => upper(j.code) === upper(c) || upper(j.nom) === upper(c));
     if (hit) return hit;
   }
   return undefined;

@@ -60,7 +60,25 @@ export function loadBundledImportColumns(): ImportColumn[] {
 }
 
 export function normalizeHeader(title: string): string {
-  return title.replace(/\u00a0/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+  return title
+    .replace(/\u00a0/g, " ")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+const HEADER_ALIASES: Record<string, string> = {
+  "n° de ligne": "num liv.",
+  "numero de ligne": "num liv.",
+  "nr livrable": "num liv.",
+  "mod ele cao": "modele cao",
+};
+
+export function canonicalHeader(title: string): string {
+  const n = normalizeHeader(title);
+  return HEADER_ALIASES[n] ?? n;
 }
 
 export function indexColumnsByHeader(
@@ -68,6 +86,8 @@ export function indexColumnsByHeader(
 ): Map<string, ImportColumn> {
   const map = new Map<string, ImportColumn>();
   for (const col of columns) {
+    const key = canonicalHeader(col.ppdTitle);
+    map.set(key, col);
     map.set(normalizeHeader(col.ppdTitle), col);
   }
   return map;

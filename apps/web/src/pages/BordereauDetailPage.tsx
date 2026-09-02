@@ -41,7 +41,10 @@ export function BordereauDetailPage() {
   return (
     <div>
       <Title3>{String(data.bordereau.NomComplet)}</Title3>
-      <Body1>Template {data.template}. Joindre des documents puis exporter le pack.</Body1>
+      <Body1>
+        Template officiel {data.template} (fixtures/). Joindre des documents puis exporter le pack EXPORT_BX — le
+        classeur protégé est copié tel quel dans le dossier.
+      </Body1>
       <div style={{ display: "flex", gap: 8, margin: "12px 0" }}>
         <Input
           placeholder="Rechercher un document à rattacher"

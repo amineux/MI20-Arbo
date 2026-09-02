@@ -43,7 +43,7 @@ Open **http://127.0.0.1:5173** (Vite proxies `/api` to the API).
 Demo walkthrough:
 
 1. **Documents** — seeded synthetic livrables (clé `36 / 9351.3`, etc.).
-2. **Import PPD** — upload `docs/fixtures/ppd_sample.xlsx` (first column `Num Liv.`). Or check *Import rapide* for `Nr Livrable`.
+2. **Import PPD** — default demo is official `fixtures/Import_Rapide_exemple.xlsx` (button *Charger Import_Rapide_exemple.xlsx*, mode rapide / `Nr Livrable`). Jalons-only: `Import_Rapide_Jalons.xlsx`. Full template: `PPD_Template.xlsx`.
 3. Compare UI (écarts / nouveaux / erreurs lookup). Apply. Rows with LDD errors (e.g. unknown fournisseur) are skipped.
 4. **Bordereaux** — create, attach documents, export pack `EXPORT_BX/MI20_BORD_<code>/`, download ZIP.
 5. Files land under `storage/` (or `MI20_STORAGE_ROOT`).
@@ -113,11 +113,12 @@ From `docs/handoff/config.txt` `[PPD]` + `import_columns.csv`:
 - LIGNE → `GroupeLigne` + `IndiceLigne` (ex. `36 / 9351.3`)
 - LDD match: `UCase(Trim(Nom))`
 - Pipeline: Excel (SheetJS bulk, **not** Excel COM) → `import_raw` staging → user confirm → merge `document` + `programmation_jalon` (unpivot `Jalon_*_1..24`)
-- Export: workbook from mapping; RATP hide **C, AA, AB, AC**
+- Official files: `fixtures/` (see `fixtures/README.md`). Default smoke/demo import: **Import_Rapide_exemple.xlsx**. Export fills **PPD_Template.xlsx**. No live `EXPORT_PPD` dumps.
+- Export: official template + RATP hide **C, AA, AB, AC**
 
 ## Bordereau rules
 
-- Template reference: `MI20_BORD_TEMPLATE_M5_V12.xls`
+- Template file: official `fixtures/MI20_BORD_TEMPLATE_M5_V12.xls` (copied into the pack; SheetJS cannot parse the protected .xls)
 - Output: `EXPORT_BX/MI20_BORD_<code>/`
 - Entities: `bordereau` + `envoi`
 

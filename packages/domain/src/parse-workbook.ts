@@ -1,15 +1,16 @@
-import { indexColumnsByHeader, normalizeHeader } from "./columns.js";
-import { unpivotJalons } from "./jalon.js";
+import { canonicalHeader, indexColumnsByHeader, normalizeHeader } from "./columns.js";
+import { jalonCodeFromHeader, unpivotJalons } from "./jalon.js";
 import { cellToText, parseLigne } from "./ligne.js";
 import { matchLookupByNom, matchLookupDomaineChargeur, lookupTableKey } from "./lookup.js";
 import { parseOuiNon } from "./oui-non.js";
 import type {
   ImportColumn,
+  JalonSlot,
   LookupCatalog,
   PpdConfig,
   StagedDocument,
 } from "./types.js";
-import { DEFAULT_PPD_CONFIG, RAPIDE_FIELD_ALLOWLIST } from "./types.js";
+import { DEFAULT_PPD_CONFIG } from "./types.js";
 
 export interface ParseWorkbookResult {
   mode: "full" | "rapide";
@@ -23,15 +24,25 @@ export function detectHeaderRow(
   sheet: unknown[][],
   config: PpdConfig = DEFAULT_PPD_CONFIG,
 ): { rowIndex: number; mode: "full" | "rapide" } | null {
-  const full = normalizeHeader(config.firstColumnTitle);
-  const rapide = normalizeHeader(config.firstColumnTitleRapide);
+  const fullKeys = new Set(
+    [config.firstColumnTitle, "N° de ligne", "Numero de ligne", "Numéro de ligne"].map(normalizeHeader),
+  );
+  const rapideKeys = new Set([normalizeHeader(config.firstColumnTitleRapide)]);
   const limit = Math.min(sheet.length, 100);
   for (let i = 0; i < limit; i++) {
-    const first = normalizeHeader(cellToText(sheet[i]?.[0]));
-    if (config.rapide && first === rapide) return { rowIndex: i, mode: "rapide" };
-    if (!config.rapide && first === full) return { rowIndex: i, mode: "full" };
-    if (first === full) return { rowIndex: i, mode: "full" };
-    if (first === rapide) return { rowIndex: i, mode: "rapide" };
+    const row = sheet[i] ?? [];
+    let foundFull = false;
+    let foundRapide = false;
+    for (const cell of row) {
+      const key = normalizeHeader(cellToText(cell));
+      if (!key) continue;
+      if (fullKeys.has(key)) foundFull = true;
+      if (rapideKeys.has(key)) foundRapide = true;
+    }
+    if (config.rapide && foundRapide) return { rowIndex: i, mode: "rapide" };
+    if (!config.rapide && foundFull) return { rowIndex: i, mode: "full" };
+    if (foundFull) return { rowIndex: i, mode: "full" };
+    if (foundRapide) return { rowIndex: i, mode: "rapide" };
   }
   return null;
 }
@@ -46,7 +57,7 @@ export function parsePpdSheet(
   const detected = detectHeaderRow(sheet, config);
   if (!detected) {
     throw new Error(
-      `En-tête PPD introuvable (attendu « ${config.firstColumnTitle} » ou « ${config.firstColumnTitleRapide} » en colonne A, 100 premières lignes).`,
+      `En-tête PPD introuvable (attendu « ${config.firstColumnTitle} » ou « ${config.firstColumnTitleRapide} » dans les 100 premières lignes).`,
     );
   }
 
@@ -56,16 +67,14 @@ export function parsePpdSheet(
   const colIndex = new Map<ImportColumn, number>();
 
   headers.forEach((h, idx) => {
-    const col = byHeader.get(normalizeHeader(h));
+    const col = byHeader.get(canonicalHeader(h)) ?? byHeader.get(normalizeHeader(h));
     if (col) colIndex.set(col, idx);
   });
 
   const missing = columns.filter((c) => {
     if (c.nature === "J") return false;
-    if (detected.mode === "rapide" && !RAPIDE_FIELD_ALLOWLIST.has(c.documentField) && c.nature !== "LIGNE") {
-      return false;
-    }
-    if (!c.toImport && detected.mode === "rapide") return false;
+    if (detected.mode === "rapide") return false;
+    if (!c.toImport) return false;
     return !colIndex.has(c);
   });
   if (missing.length && detected.mode === "full") {
@@ -96,9 +105,6 @@ export function parsePpdSheet(
 
     for (const col of ordered) {
       if (col.nature === "J") continue;
-      if (detected.mode === "rapide" && !RAPIDE_FIELD_ALLOWLIST.has(col.documentField) && col.nature !== "LIGNE") {
-        continue;
-      }
       if (!col.toImport && detected.mode === "full" && col.nature !== "LIGNE") {
         continue;
       }
@@ -116,6 +122,9 @@ export function parsePpdSheet(
     }
 
     staged.jalons = unpivotJalons(headerRow, dataRow, config);
+    if (staged.jalons.length === 0) {
+      staged.jalons = parseJalonsRapideColumns(headers, dataRow);
+    }
     rows.push(staged);
   }
 
@@ -126,6 +135,24 @@ export function parsePpdSheet(
     rows,
     warnings,
   };
+}
+
+function parseJalonsRapideColumns(headers: string[], dataRow: unknown[]): JalonSlot[] {
+  const nomIdx = headers.findIndex((h) => normalizeHeader(h) === "nouveau jalon");
+  if (nomIdx < 0) return [];
+  const valIdx = headers.findIndex((h) => normalizeHeader(h) === "nouvelle version");
+  const nom = cellToText(dataRow[nomIdx]);
+  const valeur = valIdx >= 0 ? cellToText(dataRow[valIdx]) : "";
+  if (!nom && !valeur) return [];
+  return [
+    {
+      index: 1,
+      nom: jalonCodeFromHeader(nom) || nom,
+      valeur,
+      date: null,
+      estPrevisionnel: false,
+    },
+  ];
 }
 
 function applyColumn(

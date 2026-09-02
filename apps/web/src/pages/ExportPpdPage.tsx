@@ -11,8 +11,8 @@ export function ExportPpdPage() {
     <div>
       <Title3>Export PPD</Title3>
       <Body1>
-        DoExportPPD — classeur aligné sur import_columns et la plage jalons (colonnes 44–66 / dates 67–89, 23 jalons).
-        Fichiers écrits sous storage/EXPORT_PPD/ (démo) ou bibliothèque SharePoint EXPORT_PPD/ (prod).
+        DoExportPPD — remplissage du template officiel <b>fixtures/PPD_Template.xlsx</b> (jalons colonnes 44–66 / dates
+        67–89). Copie sous storage/templates/ au démarrage. Pas de dumps EXPORT_PPD de production.
       </Body1>
       <div style={{ marginTop: 16 }}>
         <Checkbox

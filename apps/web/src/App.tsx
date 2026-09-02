@@ -160,7 +160,7 @@ export function App() {
               <StubPage
                 title="KPI / bilan envois / documents d'autorisation"
                 form="Form_EXPORT"
-                detail="Templates KPI1, BilanEnvois, DoctsAutorisation — exports à brancher."
+                detail="Templates officiels sous fixtures/ : KPI1_Template.xlsm, BilanEnvois_Template.xlsx, DoctsAutorisation_Template.xlsx (GET /api/templates). Export métier à brancher."
               />
             }
           />

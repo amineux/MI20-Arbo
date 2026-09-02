@@ -10,12 +10,22 @@ import archiver from "archiver";
 import {
   buildPpdExportWorkbook,
   DEFAULT_PPD_CONFIG,
+  DEFAULT_RAPIDE_FIXTURE,
+  fillOfficialPpdTemplate,
+  JALONS_RAPIDE_FIXTURE,
   loadBundledImportColumns,
+  PPD_TEMPLATE_FILE,
 } from "@mi20/domain";
 import { authHook, entraClientConfig } from "./auth.js";
 import { applyImportBatch, importPpdBuffer, listJalons, loadDocumentSnapshots, ppdConfigFromDb } from "./import-service.js";
 import { loadLookupCatalog } from "./seed.js";
 import type { FileStorage } from "./storage.js";
+import {
+  BX_TEMPLATE_FILE,
+  listTemplates,
+  readOfficialFixture,
+  readTemplate,
+} from "./templates.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -56,6 +66,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       lock,
       ppd: DEFAULT_PPD_CONFIG,
       bxTemplate: "MI20_BORD_TEMPLATE_M5_V12.xls",
+      defaultImportFixture: DEFAULT_RAPIDE_FIXTURE,
+      templates: listTemplates(),
     };
   });
 
@@ -254,6 +266,36 @@ function registerLookupRoutes(app: FastifyInstance, deps: AppDeps): void {
 }
 
 function registerImportRoutes(app: FastifyInstance, deps: AppDeps): void {
+  app.get("/api/templates", async () => ({ rows: listTemplates() }));
+
+  app.get("/api/templates/:file", async (req, reply) => {
+    const file = decodeURIComponent((req.params as { file: string }).file);
+    try {
+      const buf = await readTemplate(deps.storage, file);
+      reply
+        .header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        .header("Content-Disposition", `attachment; filename="${file}"`)
+        .send(buf);
+    } catch (err) {
+      reply.code(404).send({ error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  app.post("/api/imports/ppd/demo", async (req) => {
+    const q = req.query as { rapide?: string; file?: string };
+    const fileName = q.file === JALONS_RAPIDE_FIXTURE ? JALONS_RAPIDE_FIXTURE : DEFAULT_RAPIDE_FIXTURE;
+    const rapide = q.rapide !== "false";
+    const buffer = readOfficialFixture(fileName);
+    return importPpdBuffer({
+      db: deps.db,
+      storage: deps.storage,
+      buffer,
+      fileName,
+      user: req.user?.name ?? "demo.user",
+      rapide,
+    });
+  });
+
   app.post("/api/imports/ppd", async (req, reply) => {
     const file = await req.file();
     if (!file) {
@@ -322,13 +364,25 @@ function registerExportRoutes(app: FastifyInstance, deps: AppDeps): void {
       IndiceLigne: s.indiceLigne,
       jalons: s.jalons.map((j) => ({ nom: j.code, valeur: j.valeur, date: j.date })),
     }));
-    const buf = buildPpdExportWorkbook({
-      columns,
-      config: ppdConfigFromDb(deps.db, false),
-      documents,
-      jalonHeaders,
-      maskRatp: body.maskRatp !== false,
-    });
+    let buf: Buffer;
+    try {
+      const template = await readTemplate(deps.storage, PPD_TEMPLATE_FILE);
+      buf = fillOfficialPpdTemplate({
+        templateBuffer: template,
+        documents,
+        columns,
+        config: ppdConfigFromDb(deps.db, false),
+        maskRatp: body.maskRatp !== false,
+      });
+    } catch {
+      buf = buildPpdExportWorkbook({
+        columns,
+        config: ppdConfigFromDb(deps.db, false),
+        documents,
+        jalonHeaders,
+        maskRatp: body.maskRatp !== false,
+      });
+    }
     const name = `PPD_MI20_${new Date().toISOString().slice(0, 10)}.xlsx`;
     await deps.storage.write(`EXPORT_PPD/${name}`, buf);
     reply
@@ -449,6 +503,17 @@ function registerBordereauRoutes(app: FastifyInstance, deps: AppDeps): void {
       ),
     ].join("\n");
     await deps.storage.write(`${folder}/MANIFEST.txt`, Buffer.from(manifest, "utf8"));
+    try {
+      const bxTemplate = await readTemplate(deps.storage, BX_TEMPLATE_FILE);
+      await deps.storage.write(`${folder}/${BX_TEMPLATE_FILE}`, bxTemplate);
+    } catch {
+      /* workbook is password-protected for SheetJS; still copy if fixtures exist */
+      try {
+        await deps.storage.write(`${folder}/${BX_TEMPLATE_FILE}`, readOfficialFixture(BX_TEMPLATE_FILE));
+      } catch {
+        /* ignore */
+      }
+    }
     await deps.storage.write(
       `${folder}/README.txt`,
       Buffer.from(
@@ -495,7 +560,7 @@ function registerStubRoutes(app: FastifyInstance, deps: AppDeps): void {
   }));
   app.get("/api/kpi", async () => ({
     stub: true,
-    templates: ["KPI1_Template.xlsm", "BilanEnvois_Template.xlsx", "DoctsAutorisation_Template.xlsx"],
+    templates: listTemplates().filter((t) => ["kpi", "bilan", "docts"].includes(t.role)),
   }));
   app.get("/api/reports", async () => {
     const histo = deps.db.prepare("SELECT * FROM doc_histo ORDER BY Id DESC LIMIT 100").all();

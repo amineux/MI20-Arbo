@@ -53,6 +53,7 @@ export const RAPIDE_FIELD_ALLOWLIST = new Set([
   "Revision",
   "DateResoumission",
   "Jalon",
+  "Langue",
 ]);
 
 export interface LookupRow {

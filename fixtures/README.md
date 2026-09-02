@@ -16,3 +16,6 @@ Official templates from `BASE ARBO MI20/SRV/TEMPLATE/` in the Arbo zip.
 | MI20_BORD_CAF_0032.xlsm | Sample filled bordereau (may contain project refs) |
 
 **Not included by default:** `EXPORT_PPD/PPD_MI20_*.xlsx` (~2.2MB each) — live CAF/RATP production exports. Ask if you need a sanitized subset of headers + few rows.
+
+The API copies these files into `storage/templates/` at startup. Demo import uses `Import_Rapide_exemple.xlsx` by default (`POST /api/imports/ppd/demo`). PPD export fills `PPD_Template.xlsx`. Bordereau packs include `MI20_BORD_TEMPLATE_M5_V12.xls` (workbook protection: copied as binary, not parsed).
+

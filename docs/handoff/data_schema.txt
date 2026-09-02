@@ -1,0 +1,280 @@
+===== SCHEMA DATA document =====
+-- ----------------------------------------------------------
+-- MDB Tools - A library for reading MS Access database files
+-- Copyright (C) 2000-2011 Brian Bruns and others.
+-- Files in libmdb are licensed under LGPL and the utilities under
+-- the GPL, see COPYING.LIB and COPYING files respectively.
+-- Check out http://mdbtools.sourceforge.net
+-- ----------------------------------------------------------
+
+-- That file uses encoding UTF-8
+
+CREATE TABLE [document]
+ (
+	[Id]			Long Integer NOT NULL, 
+	[RefExt]			Text (80) NOT NULL, 
+	[GroupeLigne]			Long Integer NOT NULL, 
+	[IndiceLigne]			Text (20) NOT NULL, 
+	[IdLeader]			Long Integer, 
+	[IdCoediteur]			Long Integer, 
+	[IdCategorie]			Long Integer, 
+	[IdCategorieAT]			Long Integer, 
+	[IdDomaineBord]			Long Integer, 
+	[IdFournisseur]			Long Integer, 
+	[IdTypeDossier]			Long Integer, 
+	[IdOrigine]			Long Integer, 
+	[IdLogicielCAO]			Long Integer, 
+	[IdModeleCAO]			Long Integer, 
+	[QteEstimeeDocs]			Text (50), 
+	[Revision]			Text (12) NOT NULL, 
+	[EstConfidentiel]			Boolean NOT NULL, 
+	[RefExtParent]			Memo/Hyperlink (255), 
+	[IdResponsable]			Long Integer, 
+	[Livrable]			Memo/Hyperlink (255) NOT NULL, 
+	[RefRATP]			Memo/Hyperlink (255), 
+	[EffMateriel]			Memo/Hyperlink (255) NOT NULL, 
+	[Poste]			Memo/Hyperlink (255), 
+	[IdDomaineChargeur]			Long Integer, 
+	[IdMetier]			Long Integer, 
+	[N_MF19]			Memo/Hyperlink (255), 
+	[Nom]			Memo/Hyperlink (255), 
+	[Sections]			Memo/Hyperlink (255), 
+	[Categorie]			Memo/Hyperlink (255), 
+	[DocumentsConnexes]			Memo/Hyperlink (255), 
+	[CommentaireBT]			Memo/Hyperlink (255), 
+	[Titre]			Memo/Hyperlink (255), 
+	[Tranche]			Memo/Hyperlink (255), 
+	[SiteEmetteur]			Memo/Hyperlink (255), 
+	[NomsInformatiques]			Memo/Hyperlink (255), 
+	[RefPDMdocFNR]			Memo/Hyperlink (255), 
+	[RelecturePartenaire]			Memo/Hyperlink (255), 
+	[Affaire]			Memo/Hyperlink (255), 
+	[ApplicationMateriel]			Memo/Hyperlink (255), 
+	[DocReferentiel]			Memo/Hyperlink (255), 
+	[EstSecuritaire]			Boolean NOT NULL, 
+	[RFA]			Boolean NOT NULL, 
+	[DemandeSortieTemporaire]			Boolean NOT NULL, 
+	[IDPic]			Long Integer, 
+	[IDPerimetre]			Long Integer, 
+	[DelivrableProjet]			Boolean NOT NULL, 
+	[LignePPDCouverteParAutreNumero]			Memo/Hyperlink (255), 
+	[IdPicSupport]			Long Integer, 
+	[IdProduit]			Long Integer, 
+	[IdNiveauConfidentialite]			Long Integer, 
+	[IdNiveauCommunication]			Long Integer, 
+	[IdPourInfo_Acceptation]			Long Integer, 
+	[RefDocumentSource]			Memo/Hyperlink (255), 
+	[IdPreuveAutorisation]			Long Integer, 
+	[Homologuant]			Boolean NOT NULL, 
+	[IdTypeCode]			Long Integer, 
+	[DateResoumission]			Text (20), 
+	[Langue]			Text (5), 
+	[Projet]			Text (10), 
+	[Metier]			Text (50), 
+	[IdTypeEnvoi]			Long Integer
+);
+
+
+rows approx: 31372
+===== SCHEMA DATA revision =====
+-- ----------------------------------------------------------
+-- MDB Tools - A library for reading MS Access database files
+-- Copyright (C) 2000-2011 Brian Bruns and others.
+-- Files in libmdb are licensed under LGPL and the utilities under
+-- the GPL, see COPYING.LIB and COPYING files respectively.
+-- Check out http://mdbtools.sourceforge.net
+-- ----------------------------------------------------------
+
+-- That file uses encoding UTF-8
+
+CREATE TABLE [revision]
+ (
+	[Id]			Long Integer NOT NULL, 
+	[Revision]			Text (10) NOT NULL, 
+	[IdProgrammationJalon]			Long Integer NOT NULL, 
+	[NomUtilisateur]			Text (255) NOT NULL, 
+	[EstActive]			Boolean NOT NULL, 
+	[FichierFicheAvis_AEnvoyer]			Memo/Hyperlink (255), 
+	[IdTypeDocument]			Long Integer, 
+	[flagEnCoursImport]			Boolean NOT NULL, 
+	[IdType_mise_a_jour]			Long Integer
+);
+
+
+rows approx: 23721
+===== SCHEMA DATA programmation_jalon =====
+-- ----------------------------------------------------------
+-- MDB Tools - A library for reading MS Access database files
+-- Copyright (C) 2000-2011 Brian Bruns and others.
+-- Files in libmdb are licensed under LGPL and the utilities under
+-- the GPL, see COPYING.LIB and COPYING files respectively.
+-- Check out http://mdbtools.sourceforge.net
+-- ----------------------------------------------------------
+
+-- That file uses encoding UTF-8
+
+CREATE TABLE [programmation_jalon]
+ (
+	[Id]			Long Integer NOT NULL, 
+	[IdDocument]			Long Integer NOT NULL, 
+	[IdJalon]			Long Integer NOT NULL, 
+	[IdVersion]			Long Integer NOT NULL, 
+	[EstPrevisionnel]			Boolean NOT NULL, 
+	[DatePrevisionnelle]			DateTime, 
+	[DemandeSortieTemporaire]			Boolean NOT NULL, 
+	[NbEnvoisNecessairesAvantAcceptation]			Long Integer, 
+	[PourcAvancement]			Long Integer
+);
+
+
+rows approx: 45722
+===== SCHEMA DATA fournisseur =====
+-- ----------------------------------------------------------
+-- MDB Tools - A library for reading MS Access database files
+-- Copyright (C) 2000-2011 Brian Bruns and others.
+-- Files in libmdb are licensed under LGPL and the utilities under
+-- the GPL, see COPYING.LIB and COPYING files respectively.
+-- Check out http://mdbtools.sourceforge.net
+-- ----------------------------------------------------------
+
+-- That file uses encoding UTF-8
+
+CREATE TABLE [fournisseur]
+ (
+	[Id]			Long Integer, 
+	[Nom]			Text (80)
+);
+
+
+rows approx: 141
+===== SCHEMA DATA domaineChargeur =====
+-- ----------------------------------------------------------
+-- MDB Tools - A library for reading MS Access database files
+-- Copyright (C) 2000-2011 Brian Bruns and others.
+-- Files in libmdb are licensed under LGPL and the utilities under
+-- the GPL, see COPYING.LIB and COPYING files respectively.
+-- Check out http://mdbtools.sourceforge.net
+-- ----------------------------------------------------------
+
+-- That file uses encoding UTF-8
+
+CREATE TABLE [domaineChargeur]
+ (
+	[Id]			Long Integer, 
+	[Nom]			Text (150), 
+	[IdPerimetre]			Long Integer, 
+	[IdDomaine]			Long Integer, 
+	[IdMetier]			Long Integer
+);
+
+
+rows approx: 732
+===== SCHEMA DATA envoi =====
+-- ----------------------------------------------------------
+-- MDB Tools - A library for reading MS Access database files
+-- Copyright (C) 2000-2011 Brian Bruns and others.
+-- Files in libmdb are licensed under LGPL and the utilities under
+-- the GPL, see COPYING.LIB and COPYING files respectively.
+-- Check out http://mdbtools.sourceforge.net
+-- ----------------------------------------------------------
+
+-- That file uses encoding UTF-8
+
+CREATE TABLE [envoi]
+ (
+	[Id]			Long Integer NOT NULL, 
+	[IdBordereau]			Long Integer NOT NULL, 
+	[IdRevision]			Long Integer NOT NULL, 
+	[IdDomaine]			Long Integer, 
+	[IdCategorieAT]			Long Integer, 
+	[IdVersionEnvoyee]			Long Integer, 
+	[Revision]			Text (12), 
+	[Titre]			Memo/Hyperlink (255) NOT NULL, 
+	[DateReceptionRATP]			DateTime, 
+	[DatePrevReceptionFA]			DateTime, 
+	[DelaiExamenRATP]			Long Integer, 
+	[DateEnvoiFACAF]			DateTime, 
+	[NomUtilisateur]			Text (255), 
+	[NumLotRATP]			Memo/Hyperlink (255), 
+	[FichierFicheAvis_Envoye]			Memo/Hyperlink (255), 
+	[ReponseFicheAvis]			Memo/Hyperlink (255), 
+	[DateReponseFATitulaire]			DateTime, 
+	[RefuseAuChargement]			Text (10), 
+	[CommentairesRATP]			Memo/Hyperlink (255), 
+	[CommentairesSupSurRetourRATP]			Memo/Hyperlink (255), 
+	[flagEnCoursImport]			Boolean NOT NULL, 
+	[IdType_mise_a_jour]			Long Integer, 
+	[Document_Pere]			Memo/Hyperlink (255)
+);
+
+
+rows approx: 30716
+===== SCHEMA DATA bordereau =====
+-- ----------------------------------------------------------
+-- MDB Tools - A library for reading MS Access database files
+-- Copyright (C) 2000-2011 Brian Bruns and others.
+-- Files in libmdb are licensed under LGPL and the utilities under
+-- the GPL, see COPYING.LIB and COPYING files respectively.
+-- Check out http://mdbtools.sourceforge.net
+-- ----------------------------------------------------------
+
+-- That file uses encoding UTF-8
+
+CREATE TABLE [bordereau]
+ (
+	[Id]			Long Integer NOT NULL, 
+	[IdLeader]			Long Integer NOT NULL, 
+	[Numero]			Long Integer NOT NULL, 
+	[DateEnvoi]			DateTime, 
+	[NomComplet]			Text (160) NOT NULL, 
+	[EstActif]			Boolean NOT NULL, 
+	[DateReceptionRATP]			DateTime, 
+	[flagEnCoursImport]			Boolean NOT NULL, 
+	[indiceRejet]			Text (3)
+);
+
+
+rows approx: 3891
+===== SCHEMA DATA Table des erreurs =====
+-- ----------------------------------------------------------
+-- MDB Tools - A library for reading MS Access database files
+-- Copyright (C) 2000-2011 Brian Bruns and others.
+-- Files in libmdb are licensed under LGPL and the utilities under
+-- the GPL, see COPYING.LIB and COPYING files respectively.
+-- Check out http://mdbtools.sourceforge.net
+-- ----------------------------------------------------------
+
+-- That file uses encoding UTF-8
+
+CREATE TABLE [Table des erreurs]
+ (
+	[F1]			Double, 
+	[F2]			Double, 
+	[F3]			DateTime, 
+	[F4]			Text (255), 
+	[F5]			Double, 
+	[F6]			DateTime, 
+	[F7]			Text (255)
+);
+
+
+rows approx: 1340
+===== SCHEMA DATA Feuil1 =====
+-- ----------------------------------------------------------
+-- MDB Tools - A library for reading MS Access database files
+-- Copyright (C) 2000-2011 Brian Bruns and others.
+-- Files in libmdb are licensed under LGPL and the utilities under
+-- the GPL, see COPYING.LIB and COPYING files respectively.
+-- Check out http://mdbtools.sourceforge.net
+-- ----------------------------------------------------------
+
+-- That file uses encoding UTF-8
+
+CREATE TABLE [Feuil1]
+ (
+	[Num Liv]			Text (255), 
+	[FILIATION]			Text (255)
+);
+
+
+rows approx: 13567

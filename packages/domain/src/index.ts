@@ -1,0 +1,10 @@
+export type { ColumnNature, ImportColumn, PpdConfig, LookupRow, LookupCatalog, JalonSlot, StagedDocument, CompareRow, DocumentSnapshot, JalonDef } from "./types.js";
+export { DEFAULT_PPD_CONFIG, RAPIDE_FIELD_ALLOWLIST, JALON_SLOT_COUNT } from "./types.js";
+export { parseLigne, formatLigne, cellToText } from "./ligne.js";
+export { normalizeLookupName, matchLookupByNom, matchLookupDomaineChargeur, lookupTableKey } from "./lookup.js";
+export { parseOuiNon, formatOuiNon } from "./oui-non.js";
+export { parseImportColumnsCsv, loadBundledImportColumns, normalizeHeader, indexColumnsByHeader } from "./columns.js";
+export { unpivotJalons, matchJalonDef, jalonsToRawFields, cellToDateIso } from "./jalon.js";
+export { parsePpdSheet, detectHeaderRow } from "./parse-workbook.js";
+export { computeDifferences, docKey } from "./compare.js";
+export { parseWorkbookToAoa, buildPpdExportWorkbook, excelColumnLetter } from "./xlsx-io.js";

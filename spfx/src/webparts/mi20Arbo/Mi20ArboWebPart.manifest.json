@@ -1,0 +1,23 @@
+{
+  "id": "c5e0f3a2-1d43-4b66-8e33-9a8f4b2d3e42",
+  "alias": "Mi20ArboWebPart",
+  "componentType": "WebPart",
+  "version": "*",
+  "manifestVersion": 2,
+  "requiresCustomScript": false,
+  "supportedHosts": ["SharePointWebPart", "SharePointFullPage", "TeamsTab"],
+  "supportsThemeVariants": true,
+  "preconfiguredEntries": [
+    {
+      "groupId": "5c03119e-3074-46fd-9661-3544362b4aea",
+      "group": { "default": "MI20" },
+      "title": { "default": "MI20 Arbo" },
+      "description": { "default": "Plan de production documentaire et bordereaux" },
+      "officeFabricIconFontName": "Documentation",
+      "properties": {
+        "appUrl": "https://localhost:5173",
+        "height": "85vh"
+      }
+    }
+  ]
+}

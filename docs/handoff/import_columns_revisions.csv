@@ -1,0 +1,7 @@
+Id,titre_template_revisions,col_table_revision,nature,AImporter
+43,"NumLivrable","NumLivrable","T",1
+44,"Revision","Revision","T",1
+45,"Jalon","Jalon","T",1
+46,"Version","Version","T",1
+47,"EstPrevisionnel","EstPrevisionnel","BOOLEAN",1
+84,"DatePrevisionnelle","DatePrevisionnelle","DATE",1

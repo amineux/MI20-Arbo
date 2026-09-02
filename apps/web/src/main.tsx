@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter, HashRouter } from "react-router-dom";
 import { FluentProvider } from "@fluentui/react-components";
 import { App } from "./App";
+import { hideBootSplash } from "./boot";
 import { mi20Theme } from "./theme";
 import { installStaticDemo, isStaticDemo, rewritePathToHash } from "./demo/install";
 import "./styles.css";
@@ -30,3 +31,5 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <FluentProvider theme={mi20Theme}>{router}</FluentProvider>
   </React.StrictMode>,
 );
+
+window.setTimeout(hideBootSplash, 8000);

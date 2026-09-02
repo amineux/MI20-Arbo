@@ -63,7 +63,8 @@ export function LookupsPage() {
           Ajouter
         </Button>
       </div>
-      <Table>
+      <div className="mi20-table-wrap">
+        <Table size="extra-small">
         <TableHeader>
           <TableRow>
             <TableHeaderCell>Id</TableHeaderCell>
@@ -90,7 +91,8 @@ export function LookupsPage() {
             </TableRow>
           ))}
         </TableBody>
-      </Table>
+        </Table>
+      </div>
     </div>
   );
 }

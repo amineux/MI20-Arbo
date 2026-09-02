@@ -266,6 +266,13 @@ function applyImport(batchId: number) {
   const s = getState();
   const batch = s.importBatches.find((b) => b.Id === batchId);
   if (!batch) throw new DemoHttpError("Lot d'import introuvable", 404);
+  if (String(batch.Status) === "applied") {
+    return {
+      appliedDocuments: Number(batch.appliedDocuments ?? 0),
+      appliedJalons: Number(batch.appliedJalons ?? 0),
+      alreadyApplied: true,
+    };
+  }
   const raws = s.importRaw.filter((r) => r.BatchId === batchId);
   const now = new Date().toISOString();
   let appliedDocuments = 0;
@@ -378,8 +385,10 @@ function applyImport(batchId: number) {
   }
   for (const c of s.importCompare.filter((r) => r.BatchId === batchId)) c.isImported = 1;
   batch.Status = "applied";
+  batch.appliedDocuments = appliedDocuments;
+  batch.appliedJalons = appliedJalons;
   saveState();
-  return { appliedDocuments, appliedJalons };
+  return { appliedDocuments, appliedJalons, alreadyApplied: false };
 }
 
 async function readJson(init?: RequestInit): Promise<Record<string, unknown>> {
@@ -771,16 +780,24 @@ export async function handleDemoApi(url: URL, init?: RequestInit): Promise<Respo
   if (path === "/api/revisions" && method === "POST") {
     const body = await readJson(init);
     const id = nextId();
+    const doc = body.idDocument ? s.documents.find((d) => d.Id === Number(body.idDocument)) : undefined;
     const row = {
       Id: id,
       Revision: String(body.revision ?? "A"),
-      IdDocument: body.idDocument ?? null,
+      IdDocument: doc?.Id ?? (body.idDocument ?? null),
+      IdProgrammationJalon: body.idProgrammationJalon ?? null,
+      GroupeLigne: doc?.GroupeLigne ?? null,
+      IndiceLigne: doc?.IndiceLigne ?? null,
+      Titre: doc?.Titre ?? null,
       NomUtilisateur: "demo.user",
       EstActive: 1,
       Commentaire: body.commentaire ?? null,
       CreatedAt: new Date().toISOString(),
     };
     s.revisions.push(row);
+    if (doc && body.revision) {
+      doc.Revision = String(body.revision);
+    }
     saveState();
     return json(row);
   }
@@ -790,9 +807,13 @@ export async function handleDemoApi(url: URL, init?: RequestInit): Promise<Respo
   if (path === "/api/ratp-returns" && method === "POST") {
     const body = await readJson(init);
     const id = nextId();
+    const doc = body.idDocument ? s.documents.find((d) => d.Id === Number(body.idDocument)) : undefined;
     const row = {
       Id: id,
-      IdDocument: body.idDocument ?? null,
+      IdDocument: doc?.Id ?? (body.idDocument ?? null),
+      GroupeLigne: doc?.GroupeLigne ?? null,
+      IndiceLigne: doc?.IndiceLigne ?? null,
+      Titre: doc?.Titre ?? null,
       Avis: String(body.avis ?? "FA"),
       Commentaire: String(body.commentaire ?? ""),
       NomUtilisateur: "demo.user",
@@ -803,7 +824,19 @@ export async function handleDemoApi(url: URL, init?: RequestInit): Promise<Respo
     return json(row);
   }
   if (path === "/api/kpi" && method === "GET") {
-    return json({ stub: true, templates: OFFICIAL_TEMPLATES.filter((t) => ["kpi", "bilan", "docts"].includes(t.role)) });
+    return json({
+      stub: true,
+      accessForms: ["export_KPI1", "BilanEnvois", "DoctsAutorisation"],
+      templates: OFFICIAL_TEMPLATES.filter((t) => ["kpi", "bilan", "docts"].includes(t.role)),
+      stats: {
+        documents: s.documents.length,
+        jalonsProgrammes: s.programmation.length,
+        bordereaux: s.bordereaux.length,
+        revisions: s.revisions.length,
+        retoursRatp: s.ratpReturns.length,
+        histo: s.histo.length,
+      },
+    });
   }
   if (path === "/api/reports" && method === "GET") {
     return json({ stub: true, accessForm: "Form_REPORT", histo: [...s.histo].slice(-100).reverse() });

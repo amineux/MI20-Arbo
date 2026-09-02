@@ -81,29 +81,32 @@ export function BordereauxPage() {
           Créer
         </Button>
       </div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHeaderCell>Code</TableHeaderCell>
-            <TableHeaderCell>Leader</TableHeaderCell>
-            <TableHeaderCell>Date</TableHeaderCell>
-            <TableHeaderCell>Envois</TableHeaderCell>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((r) => (
-            <TableRow key={r.Id} style={{ cursor: "pointer" }} onClick={() => nav(`/bordereaux/${r.Id}`)}>
-              <TableCell>{r.NomComplet}</TableCell>
-              <TableCell>{r.LeaderNom}</TableCell>
-              <TableCell>{r.DateEnvoi}</TableCell>
-              <TableCell>{r.NbEnvois}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
       {rows.length === 0 ? (
         <EmptyState title="Aucun bordereau" detail="Choisissez un leader technique puis Créer (parcours démo étape 3)." />
-      ) : null}
+      ) : (
+        <div className="mi20-table-wrap">
+          <Table size="extra-small">
+            <TableHeader>
+              <TableRow>
+                <TableHeaderCell>Code</TableHeaderCell>
+                <TableHeaderCell>Leader</TableHeaderCell>
+                <TableHeaderCell>Date</TableHeaderCell>
+                <TableHeaderCell>Envois</TableHeaderCell>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {rows.map((r) => (
+                <TableRow key={r.Id} style={{ cursor: "pointer" }} onClick={() => nav(`/bordereaux/${r.Id}`)}>
+                  <TableCell>{r.NomComplet}</TableCell>
+                  <TableCell>{r.LeaderNom}</TableCell>
+                  <TableCell>{r.DateEnvoi}</TableCell>
+                  <TableCell>{r.NbEnvois}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 }

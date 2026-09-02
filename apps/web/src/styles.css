@@ -1,2 +1,53 @@
 body { margin: 0; }
 #root { min-height: 100vh; }
+.mi20-table-wrap {
+  overflow-x: auto;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  margin-top: 12px;
+}
+.mi20-apply-bar {
+  position: sticky;
+  bottom: 8px;
+  z-index: 5;
+  margin-top: 20px;
+  padding: 16px 18px;
+  background: #fff;
+  border: 2px solid #1b365d;
+  border-radius: 10px;
+  box-shadow: 0 -6px 24px rgba(27, 54, 93, 0.16);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.mi20-apply-bar .hint {
+  color: #616161;
+  font-size: 13px;
+  flex: 1;
+  min-width: 200px;
+}
+.mi20-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  margin: 16px 0 24px;
+}
+.mi20-stat {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.mi20-stat .n {
+  font-size: 22px;
+  font-weight: 600;
+  color: #1b365d;
+  line-height: 1.2;
+}
+.mi20-stat .l {
+  font-size: 12px;
+  color: #616161;
+  margin-top: 4px;
+}

@@ -1,40 +1,55 @@
 import {
   Body1,
   Button,
+  Caption1,
   Card,
   CardHeader,
   makeStyles,
+  Spinner,
   Subtitle2,
   Title3,
   tokens,
 } from "@fluentui/react-components";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useState } from "react";
 
 const useStyles = makeStyles({
   grid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
+    gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))",
     gap: "14px",
-    marginTop: "16px",
+    marginTop: "24px",
   },
-  card: {
-    minHeight: "132px",
-    height: "100%",
+  cardLink: {
     textDecoration: "none",
     color: "inherit",
     display: "block",
+    height: "100%",
+  },
+  card: {
+    minHeight: "148px",
+    height: "100%",
+    border: `1px solid ${tokens.colorNeutralStroke2}`,
+    boxShadow: tokens.shadow4,
+    transitionProperty: "transform, box-shadow",
+    transitionDuration: "140ms",
+    ":hover": {
+      transform: "translateY(-3px)",
+      boxShadow: tokens.shadow16,
+    },
   },
   tour: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-    gap: "12px",
-    marginTop: "12px",
-    padding: "16px",
+    gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+    gap: "14px",
+    marginTop: "16px",
+    padding: "20px",
     backgroundColor: tokens.colorNeutralBackground1,
     border: `1px solid ${tokens.colorNeutralStroke2}`,
     borderRadius: tokens.borderRadiusLarge,
+    boxShadow: tokens.shadow8,
   },
-  step: { display: "flex", flexDirection: "column", gap: "8px" },
+  step: { display: "flex", flexDirection: "column", gap: "10px" },
   num: {
     width: "28px",
     height: "28px",
@@ -47,7 +62,8 @@ const useStyles = makeStyles({
     fontWeight: 600,
     fontSize: "13px",
   },
-  muted: { color: tokens.colorNeutralForeground3, marginTop: "8px" },
+  muted: { color: tokens.colorNeutralForeground3, marginTop: "16px", fontSize: "12px" },
+  lead: { maxWidth: "72ch", color: tokens.colorNeutralForeground2 },
 });
 
 const MODULES = [
@@ -58,51 +74,63 @@ const MODULES = [
   { to: "/lookups", title: "Référentiels", form: "tables LDD (Nom)", desc: "Fournisseur, domaine chargeur, métier, PIC…" },
   { to: "/revisions", title: "Révisions", form: "Form_CREATE_REV", desc: "Indice de révision lié à la programmation jalon." },
   { to: "/retours-ratp", title: "Retours RATP", form: "Form_SaisieRetoursRATP", desc: "Fiches avis — saisie démo." },
-  { to: "/kpi", title: "KPI / bilans", form: "export_KPI1 / BilanEnvois", desc: "Télécharger les templates officiels." },
+  { to: "/kpi", title: "KPI / bilans", form: "export_KPI1 / BilanEnvois", desc: "Compteurs démo + templates officiels." },
   { to: "/rapports", title: "Rapports / audit", form: "Form_REPORT / doc_histo", desc: "Historique champ à champ." },
   { to: "/verrouillage", title: "Verrouillage", form: "Form_VerrouillageBase", desc: "Bannière de base verrouillée." },
 ];
 
 export function HomePage() {
   const s = useStyles();
+  const nav = useNavigate();
+  const [busy, setBusy] = useState(false);
+
   return (
     <div>
       <Title3>Accueil</Title3>
-      <Body1>
+      <Body1 className={s.lead}>
         Remplacement hébergé de l&apos;application Access <b>BASE ARBO MI20</b> (IHM 1.6.6) — PPD et bordereaux. Source
         des modules : <code>docs/handoff/TEKKY_BASE_ARBO_HANDOFF.md</code>.
       </Body1>
 
       <div className={s.tour}>
-        <Subtitle2 style={{ gridColumn: "1 / -1" }}>Parcours démo (3 clics)</Subtitle2>
+        <Subtitle2 style={{ gridColumn: "1 / -1" }}>Parcours démo (3 étapes guidées)</Subtitle2>
         <div className={s.step}>
           <span className={s.num}>1</span>
-          <Body1>Ouvrir la liste des documents (clé métier 36 / 9351.3).</Body1>
-          <Link to="/documents">
-            <Button appearance="primary">Documents</Button>
-          </Link>
+          <Body1>Ouvrir la liste (clé métier <b>36 / 9351.3</b>).</Body1>
+          <Button appearance="primary" onClick={() => nav("/documents")}>
+            Voir les documents
+          </Button>
         </div>
         <div className={s.step}>
           <span className={s.num}>2</span>
-          <Body1>Charger Import_Rapide_exemple.xlsx, comparer, appliquer.</Body1>
-          <Link to="/import-ppd">
-            <Button appearance="primary">Import PPD</Button>
-          </Link>
+          <Body1>
+            Charge <b>Import_Rapide_exemple.xlsx</b>, ouvre les onglets, puis applique — toast avec les comptes.
+          </Body1>
+          <Button
+            appearance="primary"
+            disabled={busy}
+            onClick={() => {
+              setBusy(true);
+              nav("/import-ppd", { state: { autorun: "rapide-apply" } });
+            }}
+          >
+            {busy ? <Spinner size="tiny" /> : null} Lancer l&apos;import rapide
+          </Button>
         </div>
         <div className={s.step}>
           <span className={s.num}>3</span>
-          <Body1>Créer un bordereau, rattacher un livrable, exporter le ZIP.</Body1>
-          <Link to="/bordereaux">
-            <Button appearance="primary">Bordereaux</Button>
-          </Link>
+          <Body1>Créer un bordereau CAF, rattacher un livrable, ZIP.</Body1>
+          <Button appearance="primary" onClick={() => nav("/bordereaux")}>
+            Créer un bordereau
+          </Button>
         </div>
       </div>
 
       <div className={s.grid}>
         {MODULES.map((m) => (
-          <Link key={m.to} to={m.to} className={s.card}>
-            <Card>
-              <CardHeader header={<b>{m.title}</b>} description={m.form} />
+          <Link key={m.to} to={m.to} className={s.cardLink}>
+            <Card className={s.card}>
+              <CardHeader header={<b>{m.title}</b>} description={<Caption1>{m.form}</Caption1>} />
               <Body1>{m.desc}</Body1>
             </Card>
           </Link>

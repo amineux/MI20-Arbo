@@ -20,12 +20,13 @@ import {
   HistoryRegular,
   ArrowSyncRegular,
 } from "@fluentui/react-icons";
-import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useState, type ReactNode } from "react";
 import { NavLink, Route, Routes, useLocation } from "react-router-dom";
 import { api } from "./api";
+import { hideBootSplash } from "./boot";
+import { HomePage } from "./pages/HomePage";
 import { Loading, ToastHost } from "./ui";
 
-const HomePage = lazy(() => import("./pages/HomePage").then((m) => ({ default: m.HomePage })));
 const DocumentsPage = lazy(() => import("./pages/DocumentsPage").then((m) => ({ default: m.DocumentsPage })));
 const DocumentEditPage = lazy(() => import("./pages/DocumentEditPage").then((m) => ({ default: m.DocumentEditPage })));
 const ImportPpdPage = lazy(() => import("./pages/ImportPpdPage").then((m) => ({ default: m.ImportPpdPage })));
@@ -128,6 +129,10 @@ export function App() {
   const loc = useLocation();
   const [meta, setMeta] = useState<Meta | null>(null);
 
+  useLayoutEffect(() => {
+    hideBootSplash();
+  }, []);
+
   useEffect(() => {
     api.get<Meta>("/api/meta").then(setMeta).catch(() => undefined);
   }, [loc.pathname]);
@@ -148,6 +153,8 @@ export function App() {
               <MessageBarTitle>Démo publique temporaire</MessageBarTitle>
               Données synthétiques dans le navigateur — pas Entra, pas SharePoint. Production :{" "}
               <a href="https://alstomgroup.sharepoint.com/sites/BT_BTPIIMaroc-GestionDoc">BT_BTPIIMaroc-GestionDoc</a>.
+              Si l&apos;accueil est vide, blanc, ou l&apos;ancien écran de landing : <b>Ctrl+Maj+R</b> (hard refresh) pour
+              ignorer le cache du navigateur.
             </MessageBarBody>
           </MessageBar>
         ) : null}

@@ -99,32 +99,34 @@ export function DocumentsPage() {
       {!loading && (data?.rows.length ?? 0) === 0 ? (
         <EmptyState title="Aucun document" detail="Ajustez la recherche ou importez un PPD (Import rapide)." />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHeaderCell>N° ligne</TableHeaderCell>
-              <TableHeaderCell>Réf. externe</TableHeaderCell>
-              <TableHeaderCell>Titre</TableHeaderCell>
-              <TableHeaderCell>Indice</TableHeaderCell>
-              <TableHeaderCell>Fournisseur</TableHeaderCell>
-              <TableHeaderCell>Livrable</TableHeaderCell>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {(data?.rows ?? []).map((r) => (
-              <TableRow key={r.Id} onClick={() => nav(`/documents/${r.Id}`)} style={{ cursor: "pointer" }}>
-                <TableCell>
-                  {r.GroupeLigne} / {r.IndiceLigne}
-                </TableCell>
-                <TableCell>{r.RefExt}</TableCell>
-                <TableCell>{r.Titre}</TableCell>
-                <TableCell>{r.Revision}</TableCell>
-                <TableCell>{r.FournisseurNom}</TableCell>
-                <TableCell>{r.Livrable}</TableCell>
+        <div className="mi20-table-wrap">
+          <Table size="extra-small">
+            <TableHeader>
+              <TableRow>
+                <TableHeaderCell>N° ligne</TableHeaderCell>
+                <TableHeaderCell>Réf. externe</TableHeaderCell>
+                <TableHeaderCell>Titre</TableHeaderCell>
+                <TableHeaderCell>Indice</TableHeaderCell>
+                <TableHeaderCell>Fournisseur</TableHeaderCell>
+                <TableHeaderCell>Livrable</TableHeaderCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {(data?.rows ?? []).map((r) => (
+                <TableRow key={r.Id} onClick={() => nav(`/documents/${r.Id}`)} style={{ cursor: "pointer" }}>
+                  <TableCell>
+                    {r.GroupeLigne} / {r.IndiceLigne}
+                  </TableCell>
+                  <TableCell>{r.RefExt}</TableCell>
+                  <TableCell>{r.Titre}</TableCell>
+                  <TableCell>{r.Revision}</TableCell>
+                  <TableCell>{r.FournisseurNom}</TableCell>
+                  <TableCell>{r.Livrable}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       )}
       <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center" }}>
         <Button disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>

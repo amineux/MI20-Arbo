@@ -15,11 +15,13 @@ const useStyles = makeStyles({
   lead: { color: tokens.colorNeutralForeground2, maxWidth: "72ch" },
   meta: { color: tokens.colorNeutralForeground3, fontSize: "12px" },
   empty: {
-    padding: "32px 20px",
+    padding: "40px 24px",
+    marginTop: "16px",
     border: `1px dashed ${tokens.colorNeutralStroke2}`,
     borderRadius: tokens.borderRadiusLarge,
     backgroundColor: tokens.colorNeutralBackground1,
     textAlign: "center",
+    boxShadow: tokens.shadow2,
   },
   toastWrap: {
     position: "fixed",
@@ -90,7 +92,7 @@ export function ToastHost({ children }: { children: ReactNode }) {
   const toast = useCallback((intent: ToastIntent, title: string, body?: string) => {
     const id = Date.now() + Math.random();
     setItems((prev) => [...prev.slice(-4), { id, intent, title, body }]);
-    window.setTimeout(() => setItems((prev) => prev.filter((t) => t.id !== id)), 5000);
+    window.setTimeout(() => setItems((prev) => prev.filter((t) => t.id !== id)), 7000);
   }, []);
   const value = useMemo(() => ({ toast }), [toast]);
   return (

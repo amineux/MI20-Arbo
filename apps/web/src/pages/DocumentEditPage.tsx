@@ -1,8 +1,64 @@
-import { Body1, Button, Field, Input, Spinner, Textarea, Title3, Checkbox } from "@fluentui/react-components";
+import {
+  Body1,
+  Button,
+  Checkbox,
+  Dropdown,
+  Field,
+  Input,
+  Option,
+  Spinner,
+  Table,
+  TableBody,
+  TableCell,
+  TableHeader,
+  TableHeaderCell,
+  TableRow,
+  Textarea,
+  Title3,
+} from "@fluentui/react-components";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
 import { PageHeader, useToast } from "../ui";
+
+interface LookupOpt {
+  id: number;
+  nom: string;
+}
+
+function LookupField({
+  label,
+  table,
+  value,
+  onChange,
+}: {
+  label: string;
+  table: string;
+  value: unknown;
+  onChange: (id: number) => void;
+}) {
+  const [rows, setRows] = useState<LookupOpt[]>([]);
+  useEffect(() => {
+    api.get<{ rows: LookupOpt[] }>(`/api/lookups/${table}`).then((r) => setRows(r.rows)).catch(() => undefined);
+  }, [table]);
+  const selected = String(value ?? "");
+  const nom = rows.find((r) => String(r.id) === selected)?.nom ?? "";
+  return (
+    <Field label={label}>
+      <Dropdown
+        value={nom}
+        selectedOptions={selected ? [selected] : []}
+        onOptionSelect={(_, d) => onChange(Number(d.optionValue))}
+      >
+        {rows.map((r) => (
+          <Option key={r.id} value={String(r.id)}>
+            {r.nom}
+          </Option>
+        ))}
+      </Dropdown>
+    </Field>
+  );
+}
 
 export function DocumentEditPage() {
   const { id } = useParams();
@@ -30,7 +86,7 @@ export function DocumentEditPage() {
     <div>
       <Button onClick={() => nav("/documents")}>← Liste</Button>
       <PageHeader title={`Document ${String(doc.GroupeLigne)} / ${String(doc.IndiceLigne)}`} form="Form_EDIT_DOC">
-        Livrable / document — enregistrement écrit doc_histo.
+        Livrable / document — enregistrement écrit doc_histo. Listes LDD : Nom affiché, Id stocké.
       </PageHeader>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 16, maxWidth: 960 }}>
         <Field label="Référence externe">
@@ -45,6 +101,15 @@ export function DocumentEditPage() {
         <Field label="Livrable" style={{ gridColumn: "1 / -1" }}>
           <Textarea value={String(doc.Livrable ?? "")} onChange={(_, d) => set("Livrable", d.value)} />
         </Field>
+        <LookupField label="Fournisseur" table="fournisseur" value={doc.IdFournisseur} onChange={(v) => set("IdFournisseur", v)} />
+        <LookupField label="Leader technique" table="Leader" value={doc.IdLeader} onChange={(v) => set("IdLeader", v)} />
+        <LookupField label="PIC" table="PIC" value={doc.IDPic} onChange={(v) => set("IDPic", v)} />
+        <LookupField
+          label="Domaine chargeur"
+          table="domaineChargeur"
+          value={doc.IdDomaineChargeur}
+          onChange={(v) => set("IdDomaineChargeur", v)}
+        />
         <Field label="Nom du document source">
           <Input value={String(doc.Nom ?? "")} onChange={(_, d) => set("Nom", d.value)} />
         </Field>
@@ -103,14 +168,32 @@ export function DocumentEditPage() {
         {msg ? <Body1 style={{ marginLeft: 12 }}>{msg}</Body1> : null}
       </div>
       <Title3 style={{ marginTop: 24 }}>Jalons programmés</Title3>
-      <ul>
-        {jalons.map((j) => (
-          <li key={String(j.Id)}>
-            {String(j.JalonCode)} — version {String(j.Version ?? "")} {j.EstPrevisionnel ? "(prévisionnel)" : ""}
-          </li>
-        ))}
-        {jalons.length === 0 ? <li>Aucun jalon</li> : null}
-      </ul>
+      {jalons.length === 0 ? (
+        <Body1>Aucun jalon sur ce livrable.</Body1>
+      ) : (
+        <div className="mi20-table-wrap">
+          <Table size="extra-small">
+            <TableHeader>
+              <TableRow>
+                <TableHeaderCell>Code</TableHeaderCell>
+                <TableHeaderCell>Version</TableHeaderCell>
+                <TableHeaderCell>Prévisionnel</TableHeaderCell>
+                <TableHeaderCell>Date</TableHeaderCell>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {jalons.map((j) => (
+                <TableRow key={String(j.Id)}>
+                  <TableCell>{String(j.JalonCode ?? j.Code ?? "")}</TableCell>
+                  <TableCell>{String(j.Version ?? "")}</TableCell>
+                  <TableCell>{j.EstPrevisionnel ? "oui" : "non"}</TableCell>
+                  <TableCell>{String(j.DatePrevisionnelle ?? "—")}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 }

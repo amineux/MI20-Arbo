@@ -69,7 +69,8 @@ export function BordereauDetailPage() {
         </Button>
       </div>
       {docs.length ? (
-        <Table size="small">
+        <div className="mi20-table-wrap">
+        <Table size="extra-small">
           <TableBody>
             {docs.map((d) => (
               <TableRow key={String(d.Id)}>
@@ -93,9 +94,11 @@ export function BordereauDetailPage() {
             ))}
           </TableBody>
         </Table>
+        </div>
       ) : null}
       <Body1 style={{ marginTop: 16, fontWeight: 600 }}>Envois</Body1>
-      <Table>
+      <div className="mi20-table-wrap">
+      <Table size="extra-small">
         <TableHeader>
           <TableRow>
             <TableHeaderCell>Ligne</TableHeaderCell>
@@ -117,6 +120,7 @@ export function BordereauDetailPage() {
           ))}
         </TableBody>
       </Table>
+      </div>
       <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
         <Button
           appearance="primary"

@@ -102,7 +102,7 @@ export interface DemoState {
   files: Record<string, { type: string; b64: string }>;
 }
 
-const STORAGE_KEY = "mi20-arbo-static-demo-v2";
+const STORAGE_KEY = "mi20-arbo-static-demo-v3";
 
 function alloc(state: DemoState): number {
   const id = state.nextId;
@@ -235,6 +235,43 @@ export function createSeedState(): DemoState {
     UserName: "seed",
     ChangedAt: new Date().toISOString(),
     IsImport: 0,
+  });
+  state.revisions.push({
+    Id: alloc(state),
+    Revision: "A",
+    IdDocument: d1.Id,
+    IdProgrammationJalon: state.programmation[0]?.Id ?? null,
+    GroupeLigne: d1.GroupeLigne,
+    IndiceLigne: d1.IndiceLigne,
+    Titre: d1.Titre,
+    NomUtilisateur: "seed",
+    EstActive: 1,
+    Commentaire: "Indice initial — Form_CREATE_REV (démo synthétique).",
+    CreatedAt: new Date().toISOString(),
+  });
+  state.revisions.push({
+    Id: alloc(state),
+    Revision: "B",
+    IdDocument: d3.Id,
+    IdProgrammationJalon: null,
+    GroupeLigne: d3.GroupeLigne,
+    IndiceLigne: d3.IndiceLigne,
+    Titre: d3.Titre,
+    NomUtilisateur: "seed",
+    EstActive: 1,
+    Commentaire: "Révision B sur livrable hors import.",
+    CreatedAt: new Date().toISOString(),
+  });
+  state.ratpReturns.push({
+    Id: alloc(state),
+    IdDocument: d1.Id,
+    GroupeLigne: d1.GroupeLigne,
+    IndiceLigne: d1.IndiceLigne,
+    Titre: d1.Titre,
+    Avis: "FA",
+    Commentaire: "Fiche avis de démonstration (Form_SaisieRetoursRATP) — donnée synthétique.",
+    NomUtilisateur: "seed",
+    CreatedAt: new Date().toISOString(),
   });
   return state;
 }

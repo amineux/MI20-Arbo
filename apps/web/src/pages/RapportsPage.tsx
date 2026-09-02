@@ -18,7 +18,8 @@ export function RapportsPage() {
       {histo.length === 0 ? (
         <EmptyState title="Pas encore d'historique" detail="Modifiez un document ou appliquez un import PPD." />
       ) : (
-        <Table size="small" style={{ marginTop: 16 }}>
+        <div className="mi20-table-wrap">
+        <Table size="extra-small">
           <TableHeader>
             <TableRow>
               <TableHeaderCell>Quand</TableHeaderCell>
@@ -44,6 +45,7 @@ export function RapportsPage() {
             ))}
           </TableBody>
         </Table>
+        </div>
       )}
       <Body1 style={{ marginTop: 12 }}>Exports PDF Crystal Reports : hors MVP.</Body1>
     </div>

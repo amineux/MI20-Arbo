@@ -139,10 +139,11 @@ export function BordereauDetailPage() {
         <Button
           onClick={async () => {
             try {
+              await api.post(`/api/bordereaux/${id}/export`);
               await api.download(`/api/bordereaux/${id}/download`, `${String(data.bordereau.NomComplet)}.zip`);
-              toast("success", "ZIP téléchargé");
+              toast("success", "ZIP téléchargé", "Pack EXPORT_BX + archive");
             } catch (e) {
-              toast("error", "ZIP", e instanceof Error ? e.message : "exportez d'abord le pack");
+              toast("error", "ZIP", e instanceof Error ? e.message : "échec export / téléchargement");
             }
           }}
         >

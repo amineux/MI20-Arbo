@@ -1,0 +1,126 @@
+==== config.ini ====
+
+[BASE]
+PATH_NETWORK = C:\BASE ARBO MI20\SRV\
+PATH_NET_DATA = C:\BASE ARBO MI20\SRV\DATA\
+PATH_LOC_IHM = C:\BASE ARBO MI20\client\IHM\
+PATH_LOC_SYSTEM = C:\BASE ARBO MI20\client\SYSTEM\
+PATH_LOC_BIBLIO =C:\BASE ARBO MI20\client\SYSTEM\BIBLIOTHEQUE\
+PATH_LOC_PICT = C:\BASE ARBO MI20\client\SYSTEM\PICTURE\
+PATH_LOC_TEMP = C:\BASE ARBO MI20\client\TEMPLATE\
+PATH_DEST_EXPORT_PPD = C:\BASE ARBO MI20\EXPORT_PPD
+PATH_DEST_EXPORT_BX = C:\BASE ARBO MI20\EXPORT_BX\
+PATH_DEST_EXPORT_BILAN_ENVOIS= C:\BASE ARBO MI20\EXPORT_BILAN_ENVOIS\
+PATH_DEST_EXPORT_KPI= C:\BASE ARBO MI20\EXPORT_KPI\
+PATH_LOG_FILE =C:\BASE ARBO MI20\LOG_FILE
+
+PATH_NET_IHM = C:\BASE ARBO MI20\SRV\IHM\
+PATH_NET_SYSTEM = C:\BASE ARBO MI20\SRV\SYSTEM\
+PATH_NET_PICT = C:\BASE ARBO MI20\SRV\SYSTEM\PICTURE\
+PATH_NET_TEMP = C:\BASE ARBO MI20\SRV\TEMPLATE\
+PATH_LOCAL = C:\BASE ARBO MI20\client\
+PATH_LOC_DATA = C:\BASE ARBO MI20\client\DATA\
+
+
+
+[FILE]
+FILE_DATA = MI20_DATA.accdb
+FILE_IHM = MI20_IHM.accdb
+FILE_TEMP_IMPORT=MI20_temp_import.accdb
+
+[VERSION]
+DEM = 1.0.3
+IHM = 1.6.6
+
+[TEMPLATE]
+
+BX = C:\BASE ARBO MI20\SRV\TEMPLATE\MI20_BORD_TEMPLATE_M5_V12.xls
+PPD = C:\BASE ARBO MI20\SRV\TEMPLATE\PPD_Template.xlsx
+KPI1 = C:\BASE ARBO MI20\SRV\TEMPLATE\KPI1_Template.xlsm
+BilanEnvois= C:\BASE ARBO MI20\SRV\TEMPLATE\BilanEnvois_Template.xlsx
+DOCTS_AUTORISATION= C:\BASE ARBO MI20\SRV\TEMPLATE\DoctsAutorisation_Template.xlsx
+Feuille_DOCTS_AUTORISATION= Liste doc
+[LOG]
+ACTUALS = C:\BASE ARBO MI20\
+[DEBUG]
+
+[EXPORT_RATP]
+COLONNES_A_MASQUER=C,AA,AB,AC
+
+[PPD]
+titreDerniereColonneXLS_PPD =Date de la prochaine soumission
+titrePremiereColonneXLS_PPD =Num Liv.
+titrePremiereColonneXLS_PPD_rapide =Nr Livrable
+titrePremiereColonneXLS_RetoursRATP =NumLivrable
+colPremierJalon  = 44
+colDernierJalon  = 66
+colPremierJalonDate  = 67
+colDernierJalonDate  = 89
+colPremierJalonLettre =AR
+colDernierJalonLettre =BN
+colPremierJalonDateLettre =BO
+colDernierJalonDateLettre =CK
+colDateResoumissionLettre =CL
+colonneDateDernierChangement  = 162
+colFinPPD = 161
+nbJalonsPPD = 23==== config.txt ====
+[BASE]
+PATH_NETWORK = C:\MI20\SRV\
+PATH_NET_DATA = C:\MI20\SRV\DATA\
+PATH_NET_IHM = C:\MI20\SRV\IHM\
+PATH_NET_SYSTEM = C:\MI20\SRV\SYSTEM\
+PATH_NET_PICT = C:\MI20\SRV\SYSTEM\PICTURE\
+PATH_NET_TEMP = C:\MI20\SRV\TEMPLATE\
+PATH_LOCAL = C:\MI20\client\
+PATH_LOC_DATA = C:\MI20\client\DATA\
+PATH_LOC_IHM = C:\MI20\client\IHM\
+PATH_LOC_SYSTEM = C:\MI20\client\SYSTEM\
+PATH_LOC_BIBLIO =C:\MI20\client\SYSTEM\BIBLIOTHEQUE\
+PATH_LOC_PICT = C:\MI20\client\SYSTEM\PICTURE\
+PATH_LOC_TEMP = C:\MI20\client\TEMPLATE\
+PATH_DEST_EXPORT_PPD = C:\MI20\EXPORT_PPD
+PATH_DEST_EXPORT_BX = C:\MI20\EXPORT_BX\
+PATH_DEST_EXPORT_BILAN_ENVOIS= C:\MI20\EXPORT_BILAN_ENVOIS\
+PATH_DEST_EXPORT_KPI= C:\MI20\EXPORT_KPI\
+
+[FILE]
+FILE_DATA = MI20_DATA.accdb
+FILE_IHM = MI20_IHM.accdb
+FILE_TEMP_IMPORT=MI20_temp_import.accdb
+
+[VERSION]
+DEM = 1.0.3
+IHM = 1.6.6
+
+[TEMPLATE]
+
+BX = C:\MI20\SRV\TEMPLATE\BX_Template.xls
+PPD = C:\MI20\SRV\TEMPLATE\PPD_Template.xlsx
+KPI1 = C:\MI20\SRV\TEMPLATE\KPI1_Template.xlsm
+BilanEnvois= C:\MI20\SRV\TEMPLATE\BilanEnvois_Template.xlsx
+DOCTS_AUTORISATION= C:\MI20\SRV\TEMPLATE\DoctsAutorisation_Template.xlsx
+Feuille_DOCTS_AUTORISATION= Liste doc
+[LOG]
+ACTUALS = C:\MI20\
+[DEBUG]
+
+[EXPORT_RATP]
+COLONNES_A_MASQUER=C,AA,AB,AC
+
+[PPD]
+titreDerniereColonneXLS_PPD =Commentaires Interne (A enlever pour le groupement)
+titrePremiereColonneXLS_PPD =Numero de ligne
+titrePremiereColonneXLS_PPD_rapide =Nr Livrable
+titrePremiereColonneXLS_RetoursRATP =NumLivrable
+colPremierJalon  = 44
+colDernierJalon  = 66
+colPremierJalonDate  = 67
+colDernierJalonDate  = 89
+colPremierJalonLettre =AR
+colDernierJalonLettre =BN
+colPremierJalonDateLettre =BO
+colDernierJalonDateLettre =CK
+colDateResoumissionLettre =CL
+colonneDateDernierChangement  = 110
+colFinPPD = 113
+nbJalonsPPD = 23

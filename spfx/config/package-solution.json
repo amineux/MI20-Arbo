@@ -1,0 +1,36 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
+  "solution": {
+    "name": "mi20-arbo-client-side-solution",
+    "id": "a3c8e1d0-9b21-4f44-8c11-7e6d2f0a1b20",
+    "version": "1.0.0.0",
+    "includeClientSideAssets": true,
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false,
+    "developer": {
+      "name": "MI20 Arbo",
+      "websiteUrl": "",
+      "privacyUrl": "",
+      "termsOfUseUrl": "",
+      "mpnId": "Undefined-1.18.2"
+    },
+    "metadata": {
+      "shortDescription": { "default": "MI20 Arbo PPD / bordereau host" },
+      "longDescription": { "default": "Embeds the MI20 Arbo web app on a SharePoint page." },
+      "screenshotPaths": [],
+      "videoUrl": "",
+      "categories": []
+    },
+    "features": [
+      {
+        "title": "MI20 Arbo Web Part",
+        "description": "Hosts the MI20 Arbo SPA",
+        "id": "b4d9e2f1-0c32-4a55-9d22-8f7e3a1c2d31",
+        "version": "1.0.0.0"
+      }
+    ]
+  },
+  "paths": {
+    "zippedPackage": "solution/mi20-arbo.sppkg"
+  }
+}

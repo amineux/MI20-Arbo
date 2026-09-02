@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "cursor/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Unit + smoke tests
+        run: npm test
+      - name: Typecheck domain
+        run: npm run build -w @mi20/domain
+      - name: Typecheck API
+        run: npm run build -w @mi20/api
+      - name: Build web
+        run: npm run build -w @mi20/web

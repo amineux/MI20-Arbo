@@ -1,0 +1,20 @@
+# Optional demo: API + persisted SQLite volume.
+# Local without Docker: `npm install && npm run dev` (API :5080, web :5173).
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - "5080:5080"
+    environment:
+      PORT: "5080"
+      AUTH_DISABLED: "true"
+      MI20_DB_PATH: /data/mi20.db
+      MI20_STORAGE_ROOT: /data/storage
+    volumes:
+      - mi20-data:/data
+
+volumes:
+  mi20-data:

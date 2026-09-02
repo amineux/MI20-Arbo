@@ -1,0 +1,18 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/config.2.0.schema.json",
+  "version": "2.0",
+  "bundles": {
+    "mi-20-arbo-web-part": {
+      "components": [
+        {
+          "entrypoint": "./lib/webparts/mi20Arbo/Mi20ArboWebPart.js",
+          "manifest": "./src/webparts/mi20Arbo/Mi20ArboWebPart.manifest.json"
+        }
+      ]
+    }
+  },
+  "externals": {},
+  "localizedResources": {
+    "Mi20ArboWebPartStrings": "lib/webparts/mi20Arbo/loc/{locale}.js"
+  }
+}

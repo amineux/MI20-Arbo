@@ -1,0 +1,13 @@
+MI20 Arbo
+=========
+
+A documentary production-plan (PPD) and bordereau (BX) work tool inspired by
+the Access IHM 1.6.6 application known as BASE ARBO MI20.
+
+This software is an independent replacement. It does not claim Bombardier,
+CAF, or RATP ownership of branding, trademarks, or production data.
+
+Demo seed data is synthetic and is not a dump of any production database.
+
+Template file names (for example MI20_BORD_TEMPLATE_M5_V12.xls) are referenced
+for operational compatibility with existing folder layouts only.

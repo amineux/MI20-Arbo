@@ -29,6 +29,15 @@ describe("Postgres SQL translation", () => {
     expect(ins).toMatch(/ON CONFLICT DO NOTHING/i);
   });
 
+  it("rewrites DDL INSERT OR IGNORE even though original text is not INSERT INTO", () => {
+    const ddl = sqliteDdlToPostgres(
+      "INSERT OR IGNORE INTO app_lock (id, locked, message) VALUES (1, 0, NULL)",
+    );
+    expect(ddl).toMatch(/INSERT INTO/i);
+    expect(ddl).toMatch(/ON CONFLICT DO NOTHING/i);
+    expect(ddl).not.toMatch(/OR IGNORE/i);
+  });
+
   it("strips COLLATE NOCASE in DDL (Postgres has no NOCASE collation)", () => {
     const ddl = sqliteDdlToPostgres(
       "CREATE TABLE lookup_row (id INTEGER PRIMARY KEY AUTOINCREMENT, UNIQUE (table_key, nom COLLATE NOCASE))",
@@ -53,6 +62,7 @@ describe.skipIf(!process.env.DATABASE_URL)("Postgres live seed (DATABASE_URL)", 
     const db = new PostgresDatabase(pool);
     try {
       await migrate(db);
+      await migrate(db); // remigrate: INSERT OR IGNORE app_lock must be ON CONFLICT
       await seed(db, { extraDocs: 0 });
       const caf = await lookupId(db, "fournisseur", "caf");
       expect(caf).toBeGreaterThan(0);

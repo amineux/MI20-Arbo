@@ -215,15 +215,16 @@ export function ImportPpdPage() {
 
   return (
     <div>
-      <PageHeader title="Import PPD" form="ImportPPD / ImportPPD_Rapide / ImportPPD_Jalons_Rapide">
+      <PageHeader title="Import PPD">
         Importez un classeur Excel, comparez, puis appliquez. Rapide = colonne <b>Nr Livrable</b> · Complet ={" "}
-        <b>Num Liv.</b> Les erreurs LDD (<code>UCase(Trim(Nom))</code>) sont listées et ignorées à l&apos;application.
+        <b>Num Liv.</b> Les erreurs de référentiel (nom unique, insensible à la casse) sont listées et ignorées à
+        l&apos;application.
       </PageHeader>
       {autorunHint || (busy && !detail) ? (
         <MessageBar intent="info" style={{ marginTop: 12 }}>
           <MessageBarBody>
-            <MessageBarTitle>Parcours démo</MessageBarTitle>
-            Chargement de Import_Rapide_exemple.xlsx puis application des lignes validées…
+            <MessageBarTitle>Import en cours</MessageBarTitle>
+            Chargement du classeur puis préparation de la comparaison…
             {busy ? <Spinner size="tiny" style={{ marginLeft: 8 }} /> : null}
           </MessageBarBody>
         </MessageBar>
@@ -343,8 +344,8 @@ export function ImportPpdPage() {
             </Button>
             <span className="hint">
               {batchApplied
-                ? "Ce lot est fusionné dans document + programmation_jalon (et doc_histo)."
-                : "Étape Access InsertValidatedChanges : écrit les lignes sans erreur LDD. Un toast confirme les comptes."}
+                ? "Ce lot est fusionné dans les documents, jalons programmés et l'historique."
+                : "Seules les lignes sans erreur de référentiel sont écrites. Un toast confirme les comptes."}
             </span>
           </div>
         </>

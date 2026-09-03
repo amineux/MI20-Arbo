@@ -13,7 +13,7 @@ import {
   TableRow,
 } from "@fluentui/react-components";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { EmptyState, PageHeader } from "../ui";
 
@@ -64,10 +64,10 @@ export function DocumentsPage() {
 
   return (
     <div>
-      <PageHeader title="Documents" form="Form_EDIT_DOC + Form_FILTRES_RECHERCHE">
+      <PageHeader title="Documents">
         Clé métier <b>GroupeLigne + IndiceLigne</b> (ex. 36 / 9351.3). Recherche titre, réf. externe, n° de ligne.
       </PageHeader>
-      <div style={{ display: "flex", gap: 8, margin: "16px 0", flexWrap: "wrap" }}>
+      <div className="mi20-toolbar">
         <Input
           style={{ minWidth: 280, flex: 1 }}
           placeholder="Titre, réf. externe, n° ligne…"
@@ -97,7 +97,15 @@ export function DocumentsPage() {
       {loading ? <Spinner label="Chargement" /> : null}
       {error ? <Body1>{error}</Body1> : null}
       {!loading && (data?.rows.length ?? 0) === 0 ? (
-        <EmptyState title="Aucun document" detail="Ajustez la recherche ou importez un PPD (Import rapide)." />
+        <EmptyState
+          title="Aucun document"
+          detail="Ajustez la recherche, ou importez un classeur PPD pour alimenter la liste."
+          action={
+            <Link to="/import-ppd">
+              <Button appearance="primary">Choisir un fichier Excel…</Button>
+            </Link>
+          }
+        />
       ) : (
         <div className="mi20-table-wrap">
           <Table size="extra-small">

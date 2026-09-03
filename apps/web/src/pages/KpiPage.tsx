@@ -1,4 +1,4 @@
-import { Body1, Button, Card, CardHeader, Caption1 } from "@fluentui/react-components";
+import { Body1, Button } from "@fluentui/react-components";
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import { PageHeader, useToast } from "../ui";
@@ -21,12 +21,6 @@ interface KpiPayload {
   };
 }
 
-const ROLE_FORM: Record<string, string> = {
-  kpi: "export_KPI1",
-  bilan: "BilanEnvois",
-  docts: "DoctsAutorisation",
-};
-
 export function KpiPage() {
   const { toast } = useToast();
   const [data, setData] = useState<KpiPayload | null>(null);
@@ -43,9 +37,9 @@ export function KpiPage() {
 
   return (
     <div>
-      <PageHeader title="KPI / bilan envois / documents d'autorisation" form="Form_EXPORT · export_KPI1">
-        Compteurs de la base démo (documents, jalons, envois). Les templates officiels du handoff se téléchargent
-        tels quels — le remplissage métier (CopyFromRecordset) n&apos;est pas encore branché.
+      <PageHeader title="KPI / bilan envois">
+        Compteurs de la base : documents, jalons, bordereaux, révisions et fiches d&apos;avis. Téléchargez les modèles
+        de classeurs officiels.
       </PageHeader>
       {stats ? (
         <div className="mi20-stat-grid">
@@ -75,29 +69,29 @@ export function KpiPage() {
           </div>
         </div>
       ) : null}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12, marginTop: 8 }}>
         {templates.map((t) => (
-          <Card key={t.file}>
-            <CardHeader header={<b>{t.labelFr}</b>} description={<Caption1>{ROLE_FORM[t.role] ?? t.role}</Caption1>} />
-            <Body1>
-              <code>{t.file}</code>
+          <div key={t.file} className="mi20-panel">
+            <div style={{ fontWeight: 600, letterSpacing: "-0.02em", marginBottom: 6 }}>{t.labelFr}</div>
+            <Body1 className="mi20-note" style={{ marginTop: 0 }}>
+              {t.file}
             </Body1>
-            <div style={{ marginTop: 12 }}>
+            <div style={{ marginTop: 14 }}>
               <Button
                 appearance="primary"
                 onClick={async () => {
                   try {
                     await api.download(`/api/templates/${encodeURIComponent(t.file)}`, t.file);
-                    toast("success", "Template téléchargé", t.file);
+                    toast("success", "Classeur téléchargé", t.file);
                   } catch (e) {
                     toast("error", t.file, e instanceof Error ? e.message : "échec");
                   }
                 }}
               >
-                Télécharger le classeur
+                Télécharger
               </Button>
             </div>
-          </Card>
+          </div>
         ))}
       </div>
     </div>

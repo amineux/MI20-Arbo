@@ -45,9 +45,8 @@ export function BordereauDetailPage() {
       <Link to="/bordereaux">
         <Button>← Liste</Button>
       </Link>
-      <PageHeader title={String(data.bordereau.NomComplet)} form="Form_MGT_BX">
-        Template officiel {data.template}. Joindre des documents puis exporter le pack EXPORT_BX (classeur protégé copié
-        tel quel).
+      <PageHeader title={String(data.bordereau.NomComplet)}>
+        Joindre des documents puis exporter le pack EXPORT_BX ({data.template}).
       </PageHeader>
       <div style={{ display: "flex", gap: 8, margin: "12px 0", flexWrap: "wrap" }}>
         <Input

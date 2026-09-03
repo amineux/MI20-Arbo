@@ -1,6 +1,6 @@
 import { BrandVariants, Theme, createLightTheme } from "@fluentui/react-components";
 
-/** Steel navy — work-tool look, no constructor branding. */
+/** Steel navy — accent only, not a heavy chrome bar. */
 const steel: BrandVariants = {
   10: "#020305",
   20: "#111823",
@@ -27,4 +27,10 @@ export const mi20Theme: Theme = {
   colorBrandBackgroundPressed: "#16263A",
   colorBrandForeground1: "#1B365D",
   colorCompoundBrandForeground1: "#1B365D",
+  colorNeutralBackground2: "#F5F5F7",
+  colorNeutralBackground1: "#FFFFFF",
+  colorNeutralStroke2: "rgba(0, 0, 0, 0.08)",
+  borderRadiusLarge: "18px",
+  borderRadiusMedium: "12px",
+  fontFamilyBase: `-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif`,
 };

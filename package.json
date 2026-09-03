@@ -10,7 +10,7 @@
   ],
   "scripts": {
     "build": "npm run build -w @mi20/domain && npm run build -w @mi20/api && npm run build -w @mi20/web",
-    "test": "npm test -w @mi20/domain && npm test -w @mi20/api",
+    "test": "npm test -w @mi20/domain && npm test -w @mi20/api && npm test -w @mi20/web",
     "lint": "npm run lint -w @mi20/domain --if-present && npm run lint -w @mi20/api --if-present && npm run lint -w @mi20/web --if-present",
     "dev": "concurrently -n api,web -c blue,green \"npm run dev -w @mi20/api\" \"npm run dev -w @mi20/web\"",
     "dev:api": "npm run dev -w @mi20/api",

@@ -14,7 +14,6 @@ import {
   TableHeaderCell,
   TableRow,
   Textarea,
-  Title3,
 } from "@fluentui/react-components";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -85,10 +84,10 @@ export function DocumentEditPage() {
   return (
     <div>
       <Button onClick={() => nav("/documents")}>← Liste</Button>
-      <PageHeader title={`Document ${String(doc.GroupeLigne)} / ${String(doc.IndiceLigne)}`} form="Form_EDIT_DOC">
-        Livrable / document — enregistrement écrit doc_histo. Listes LDD : Nom affiché, Id stocké.
+      <PageHeader title={`Document ${String(doc.GroupeLigne)} / ${String(doc.IndiceLigne)}`}>
+        Enregistrement écrit dans l&apos;historique champ à champ. Listes : nom affiché, identifiant stocké.
       </PageHeader>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 16, maxWidth: 960 }}>
+      <div className="mi20-panel" style={{ marginTop: 20, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, maxWidth: 960 }}>
         <Field label="Référence externe">
           <Input value={String(doc.RefExt ?? "")} onChange={(_, d) => set("RefExt", d.value)} />
         </Field>
@@ -167,7 +166,7 @@ export function DocumentEditPage() {
         </Button>
         {msg ? <Body1 style={{ marginLeft: 12 }}>{msg}</Body1> : null}
       </div>
-      <Title3 style={{ marginTop: 24 }}>Jalons programmés</Title3>
+      <h2 style={{ marginTop: 28, fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>Jalons programmés</h2>
       {jalons.length === 0 ? (
         <Body1>Aucun jalon sur ce livrable.</Body1>
       ) : (

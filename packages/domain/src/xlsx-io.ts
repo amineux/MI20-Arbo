@@ -29,17 +29,30 @@ function writeXlsxBuffer(wb: XLSX.WorkBook): Buffer {
   return arr as unknown as Buffer;
 }
 
-export function parseWorkbookToAoa(buffer: Buffer | ArrayBuffer | Uint8Array): unknown[][] {
+export function parseWorkbookToAoa(
+  buffer: Buffer | ArrayBuffer | Uint8Array,
+  preferredSheet?: string,
+): unknown[][] {
   const wb = workbookFromBytes(buffer);
   const name = wb.SheetNames[0];
   if (!name) throw new Error("Classeur Excel vide");
+  const want = preferredSheet?.toUpperCase();
   const preferred =
+    (want ? wb.SheetNames.find((n) => n.toUpperCase() === want) : undefined) ??
+    (want ? wb.SheetNames.find((n) => n.toUpperCase().includes(want)) : undefined) ??
     wb.SheetNames.find((n) => n.toUpperCase() === "PPD") ??
     wb.SheetNames.find((n) => n.toUpperCase().includes("PPD")) ??
+    wb.SheetNames.find((n) => n.toUpperCase().includes("FA") || n.toUpperCase().includes("RETOUR")) ??
     name;
   const sheet = wb.Sheets[preferred];
-  if (!sheet) throw new Error("Feuille PPD introuvable");
+  if (!sheet) throw new Error("Feuille Excel introuvable");
   return XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: true }) as unknown[][];
+}
+
+export function writeAoaWorkbook(aoa: unknown[][], sheetName = "Sheet1"): Buffer {
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, sheetFromMatrix(aoa), sheetName);
+  return writeXlsxBuffer(wb);
 }
 
 export function buildPpdExportWorkbook(args: {

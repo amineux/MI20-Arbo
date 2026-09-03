@@ -5,6 +5,7 @@ export const PPD_TEMPLATE_SMALL_FILE = "Copie_de_PPD_Template.xlsx";
 export const BX_TEMPLATE_FILE = "MI20_BORD_TEMPLATE_M5_V12.xls";
 export const BX_TEMPLATE_LEGACY_FILE = "BX_Template.xls";
 export const BX_SAMPLE_FILE = "MI20_BORD_CAF_0032.xlsm";
+export const FA_RAPIDE_FIXTURE = "Import_Retours_RATP_exemple.xlsx";
 
 export interface OfficialTemplate {
   file: string;
@@ -24,6 +25,7 @@ export const OFFICIAL_TEMPLATES: OfficialTemplate[] = [
   { file: "BilanEnvois_Template.xlsx", role: "bilan", labelFr: "Template bilan envois" },
   { file: "DoctsAutorisation_Template.xlsx", role: "docts", labelFr: "Template documents d'autorisation" },
   { file: BX_SAMPLE_FILE, role: "bx-sample", labelFr: "Exemple bordereau CAF 0032" },
+  { file: FA_RAPIDE_FIXTURE, role: "fa-import", labelFr: "Exemple import fiches d'avis / retours RATP" },
 ];
 
 export function isOfficialTemplateName(fileName: string): boolean {

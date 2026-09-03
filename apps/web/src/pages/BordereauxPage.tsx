@@ -70,15 +70,23 @@ export function BordereauxPage() {
         <Button
           appearance="primary"
           onClick={async () => {
-            const r = await api.post<{ id: number }>("/api/bordereaux", {
-              idLeader: Number(leaderId),
-              numero: numero ? Number(numero) : undefined,
-            });
-            toast("success", "Bordereau créé");
-            nav(`/bordereaux/${r.id}`);
+            try {
+              if (!leaderId) {
+                toast("error", "Leader technique obligatoire");
+                return;
+              }
+              const r = await api.post<{ id: number }>("/api/bordereaux", {
+                idLeader: Number(leaderId),
+                numero: numero ? Number(numero) : undefined,
+              });
+              toast("success", "Bordereau créé", "Rattachez des documents puis téléchargez le pack EXPORT_BX.");
+              nav(`/bordereaux/${r.id}`);
+            } catch (e) {
+              toast("error", "Création bordereau", e instanceof Error ? e.message : "échec");
+            }
           }}
         >
-          Créer
+          Créer le bordereau
         </Button>
       </div>
       {rows.length === 0 ? (

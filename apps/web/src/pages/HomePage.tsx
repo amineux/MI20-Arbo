@@ -11,7 +11,8 @@ import {
   tokens,
 } from "@fluentui/react-components";
 import { Link, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { api } from "../api";
 
 const useStyles = makeStyles({
   grid: {
@@ -73,30 +74,73 @@ const MODULES = [
   { to: "/bordereaux", title: "Bordereaux", form: "Form_CREATE_BX / Form_MGT_BX", desc: "En-tête, pièces, pack EXPORT_BX." },
   { to: "/lookups", title: "Référentiels", form: "tables LDD (Nom)", desc: "Fournisseur, domaine chargeur, métier, PIC…" },
   { to: "/revisions", title: "Révisions", form: "Form_CREATE_REV", desc: "Indice de révision lié à la programmation jalon." },
-  { to: "/retours-ratp", title: "Retours RATP", form: "Form_SaisieRetoursRATP", desc: "Fiches avis — saisie démo." },
-  { to: "/kpi", title: "KPI / bilans", form: "export_KPI1 / BilanEnvois", desc: "Compteurs démo + templates officiels." },
+  { to: "/retours-ratp", title: "Retours RATP", form: "Form_SaisieRetoursRATP", desc: "Import Excel FA + saisie — met à jour envois/révisions." },
+  { to: "/kpi", title: "KPI / bilans", form: "export_KPI1 / BilanEnvois", desc: "Compteurs de la base + templates officiels." },
   { to: "/rapports", title: "Rapports / audit", form: "Form_REPORT / doc_histo", desc: "Historique champ à champ." },
   { to: "/verrouillage", title: "Verrouillage", form: "Form_VerrouillageBase", desc: "Bannière de base verrouillée." },
 ];
+
+interface Stats {
+  documents: number;
+  jalonsProgrammes: number;
+  bordereaux: number;
+  envois?: number;
+  revisions: number;
+  retoursRatp: number;
+  histo: number;
+  dialect?: string;
+}
 
 export function HomePage() {
   const s = useStyles();
   const nav = useNavigate();
   const [busy, setBusy] = useState(false);
+  const [stats, setStats] = useState<Stats | null>(null);
+
+  useEffect(() => {
+    api.get<Stats>("/api/stats").then(setStats).catch(() => undefined);
+  }, []);
 
   return (
     <div>
       <Title3>Accueil</Title3>
       <Body1 className={s.lead}>
-        Remplacement hébergé de l&apos;application Access <b>BASE ARBO MI20</b> (IHM 1.6.6) — PPD et bordereaux. Source
-        des modules : <code>docs/handoff/TEKKY_BASE_ARBO_HANDOFF.md</code>.
+        Remplacement hébergé de l&apos;application Access <b>BASE ARBO MI20</b> (IHM 1.6.6) — PPD, bordereaux et fiches
+        d&apos;avis. Chemin principal : API + base (SQLite locale ou Postgres). Source des modules :{" "}
+        <code>docs/handoff/TEKKY_BASE_ARBO_HANDOFF.md</code>.
       </Body1>
+      {stats ? (
+        <div className="mi20-stat-grid">
+          <div className="mi20-stat">
+            <div className="n">{stats.documents}</div>
+            <div className="l">Documents</div>
+          </div>
+          <div className="mi20-stat">
+            <div className="n">{stats.jalonsProgrammes}</div>
+            <div className="l">Jalons programmés</div>
+          </div>
+          <div className="mi20-stat">
+            <div className="n">{stats.bordereaux}</div>
+            <div className="l">Bordereaux</div>
+          </div>
+          <div className="mi20-stat">
+            <div className="n">{stats.retoursRatp}</div>
+            <div className="l">Fiches d&apos;avis</div>
+          </div>
+          <div className="mi20-stat">
+            <div className="n">{stats.dialect ?? "sqlite"}</div>
+            <div className="l">Moteur de base</div>
+          </div>
+        </div>
+      ) : null}
 
       <div className={s.tour}>
-        <Subtitle2 style={{ gridColumn: "1 / -1" }}>Parcours démo (3 étapes guidées)</Subtitle2>
+        <Subtitle2 style={{ gridColumn: "1 / -1" }}>Parcours démo (base réelle)</Subtitle2>
         <div className={s.step}>
           <span className={s.num}>1</span>
-          <Body1>Ouvrir la liste (clé métier <b>36 / 9351.3</b>).</Body1>
+          <Body1>
+            Ouvrir la liste (clé métier <b>36 / 9351.3</b>).
+          </Body1>
           <Button appearance="primary" onClick={() => nav("/documents")}>
             Voir les documents
           </Button>
@@ -104,7 +148,7 @@ export function HomePage() {
         <div className={s.step}>
           <span className={s.num}>2</span>
           <Body1>
-            Charge <b>Import_Rapide_exemple.xlsx</b>, ouvre les onglets, puis applique — toast avec les comptes.
+            Charge <b>Import_Rapide_exemple.xlsx</b>, compare, puis applique — les documents restent en base.
           </Body1>
           <Button
             appearance="primary"
@@ -119,9 +163,16 @@ export function HomePage() {
         </div>
         <div className={s.step}>
           <span className={s.num}>3</span>
-          <Body1>Créer un bordereau CAF, rattacher un livrable, ZIP.</Body1>
+          <Body1>Créer un bordereau CAF, rattacher un livrable, ZIP EXPORT_BX.</Body1>
           <Button appearance="primary" onClick={() => nav("/bordereaux")}>
             Créer un bordereau
+          </Button>
+        </div>
+        <div className={s.step}>
+          <span className={s.num}>4</span>
+          <Body1>Importer les fiches d&apos;avis (NumLivrable) — met à jour envois et révisions.</Body1>
+          <Button appearance="primary" onClick={() => nav("/retours-ratp")}>
+            Import fiches d&apos;avis
           </Button>
         </div>
       </div>
@@ -136,7 +187,9 @@ export function HomePage() {
           </Link>
         ))}
       </div>
-      <div className={s.muted}>Form_ARCHI n&apos;est pas un écran MVP (handoff).</div>
+      <div className={s.muted}>
+        Form_ARCHI n&apos;est pas un écran MVP (handoff). Pages GitHub = démo navigateur, pas la cible métier.
+      </div>
     </div>
   );
 }

@@ -1,30 +1,79 @@
 # MI20 Arbo
 
-SharePoint-hosted replacement of the Access **BASE ARBO MI20** IHM (version 1.6.6) for documentary production plans (**PPD**) and **bordereaux** (BX).
+SharePoint-hosted replacement of the Access **BASE ARBO MI20** IHM (version 1.6.6) for documentary production plans (**PPD**), **bordereaux** (BX) and **fiches d'avis** / retours RATP.
 
 Inspired by that Access app. This is an independent work tool for the project team. It does **not** claim Bombardier, CAF, or RATP branding. Demo data is **synthetic**, not a production dump.
 
 Source of truth for modules and mappings: [`docs/handoff/`](docs/handoff/TEKKY_BASE_ARBO_HANDOFF.md). Screen checklist: [`docs/MODULES.md`](docs/MODULES.md).
 
-## Temporary public demo (not Alstom production)
+## Primary path (full stack — this is the working app)
+
+Requires **Node 22**. Auth is off (`AUTH_DISABLED=true`). No Entra for local demo.
+
+```bash
+npm install
+npm test          # domain unit tests + API smoke: PPD, BX ZIP, fiches d'avis, scale seed
+npm run dev       # API http://127.0.0.1:5080  +  web http://127.0.0.1:5173
+```
+
+Open **http://127.0.0.1:5173** (Vite proxies `/api` to the API). SQLite file is created at `apps/api/data/mi20.db` (or `MI20_DB_PATH`). First start seeds lookups + 3 canonical livrables + **3000** synthetic documents (`MI20_SEED_DOCS`).
+
+### Exact demo walkthrough
+
+1. **Accueil** — counters (documents, jalons, bordereaux, fiches d'avis) come from the database.
+2. **Documents** — search `36 / 9351.3` (seed). Pagination holds thousands of synthetic rows.
+3. **Import PPD**
+   - *Charger Import_Rapide_exemple.xlsx* (mode rapide, `Nr Livrable`) → onglets Comparaison / Nouveaux / Erreurs LDD → **Appliquer les modifications validées**.
+   - Rows with bad LDD (`UCase(Trim(Nom))`, e.g. unknown fournisseur) are listed and **skipped** on apply; they do not crash the lot.
+   - *Charger Import_Rapide_Jalons.xlsx* for jalons-only.
+   - *Charger PPD_Template.xlsx (mode complet)* or upload a full PPD (header `Num Liv.`). The official template may have few/no data rows; a larger workbook with the same headers applies the same pipeline.
+4. **Bordereaux** — choose leader **CAF** → **Créer le bordereau** → search a document → **Rattacher** → **Exporter et télécharger le ZIP**. Pack layout: `EXPORT_BX/MI20_BORD_<code>/` (manifest + `MI20_BORD_TEMPLATE_M5_V12.xls`). Download generates the pack if needed (one-click).
+5. **Retours RATP** → onglet **Import Excel FA** → *Charger Import_Retours_RATP_exemple.xlsx* (header `NumLivrable`) → **Appliquer les fiches d'avis**. That updates `fiche_avis`, `envoi` (Réponse / fichier FA) and `revision`. Unknown livrables stay in the error list (not a silent no-op). Manual saisie on the other tab writes the same tables.
+
+Files land under `storage/` (or `MI20_STORAGE_ROOT`).
+
+### Docker (Postgres by default)
+
+```bash
+docker compose up --build
+```
+
+- Postgres 16 on `:5432` (`DATABASE_URL=postgres://mi20:mi20@postgres:5432/mi20`)
+- API + built SPA on **http://127.0.0.1:5080**
+- Seed: 3000 synthetic documents (`MI20_SEED_DOCS`)
+- Volume `mi20-pg` keeps the database; `mi20-files` keeps `EXPORT_*` / imports
+
+SQLite-in-docker (no Postgres): `docker compose --profile sqlite up --build api-sqlite`.
+
+### How to import / scale toward Access volume (~30k documents, ~45k jalons)
+
+| Goal | How |
+|------|-----|
+| Local demo | `npm run dev` — SQLite + `MI20_SEED_DOCS=3000` (default on empty DB) |
+| Heavier seed | `MI20_SEED_DOCS=30000 AUTH_DISABLED=true npm run dev:api` (first start only; `seedIfEmpty`) |
+| Real PPD | Import PPD → upload `.xlsx` (rapide or full). Staging → compare → apply. Do **not** commit production PPD. |
+| Official fixtures | `fixtures/Import_Rapide_exemple.xlsx`, `Import_Rapide_Jalons.xlsx`, `PPD_Template.xlsx` |
+| Fiches d'avis | `fixtures/Import_Retours_RATP_exemple.xlsx` or any sheet with `NumLivrable` |
+| Postgres / Neon / Supabase | Set `DATABASE_URL=postgres://...` (same schema/migrations). Docker Compose already does this. |
+| Indexes | `GroupeLigne+IndiceLigne` unique, `programmation_jalon(IdDocument,IdJalon)`, envoi/revision/histo/FA batch indexes |
+
+The API loads document snapshots for PPD compare in memory; tens of thousands of rows is the intended band. Bulk apply skips LDD-error rows.
+
+## Temporary public demo (not the success target)
 
 Shareable HTTPS test link (GitHub Pages, no Entra, no SharePoint):
 
 **https://amineux.github.io/MI20-Arbo/**
 
-Hash routes (`#/documents`, `#/import-ppd`, `#/bordereaux`) — GitHub Pages 404s path URLs.
+Hash routes (`#/documents`, `#/import-ppd`, `#/bordereaux`, `#/retours-ratp`). **In-browser localStorage intercept** — useful for an email click, **not** durable storage. Production / team use is `npm run dev` or `docker compose`.
 
-**Parcours démo (3 clics)** on Accueil: Documents → Import PPD (charger `Import_Rapide_exemple.xlsx` + appliquer) → créer un bordereau.
-
-In-browser demo (localStorage + official `fixtures/` via SheetJS). **Not** Alstom production — Azure + Entra + `BT_BTPIIMaroc-GestionDoc` ([`docs/DEPLOY_SHAREPOINT.md`](docs/DEPLOY_SHAREPOINT.md)).
-
-Rebuild locally:
+Rebuild:
 
 ```bash
 VITE_STATIC_DEMO=true VITE_BASE=/MI20-Arbo/ npm run build:pages
 ```
 
-Workflow: [`.github/workflows/pages.yml`](.github/workflows/pages.yml) (deploys on `main`).
+Workflow: [`.github/workflows/pages.yml`](.github/workflows/pages.yml).
 
 ## Architecture
 
@@ -33,83 +82,30 @@ SharePoint page
   └─ SPFx web part (iframe)  ──or──  Embed web part
         └─ React 18 + Fluent UI v9  (apps/web)
               └─ REST  /api/*
-                    └─ Node 22 Fastify API  (apps/api)   ← equivalent of ASP.NET Minimal APIs
-                          ├─ SQLite (demo) / Azure SQL script (docs/sql/azure.sql)
+                    └─ Node 22 Fastify API  (apps/api)
+                          ├─ SQLite (local)  or  Postgres (DATABASE_URL / docker)
                           └─ FileStorage: local storage/  or Microsoft Graph (SharePoint library)
 ```
 
-Why Node instead of ASP.NET Core 8: this environment and the SPFx toolchain are already Node/TypeScript. The API is a thin Fastify surface (Minimal API style). Domain rules live in `packages/domain` so PPD mapping is unit-tested without a web host. A future ASP.NET host can call the same rules if you port the package.
-
 | Folder | Role |
 |--------|------|
-| `packages/domain` | PPD `import_columns` mapping, LIGNE parse, LDD `UCase(Trim(Nom))`, jalon unpivot, Excel I/O (SheetJS) |
-| `apps/api` | Fastify + better-sqlite3 + import/export/bordereau/lookups |
+| `packages/domain` | PPD `import_columns` mapping, LIGNE parse, LDD `UCase(Trim(Nom))`, jalon unpivot, FA `NumLivrable`, Excel I/O (SheetJS) |
+| `apps/api` | Fastify + SQLite/Postgres + import/export/bordereau/fiches d'avis |
 | `apps/web` | Fluent UI v9 SPA (French labels) |
 | `spfx/` | SPFx 1.18 web part that iframes the SPA |
 | `docs/handoff/` | Access schemas, config `[PPD]`, column map |
+| `fixtures/` | Official templates + synthetic FA example (no production PPD dump) |
 
-## Local demo
-
-Requires **Node 22**.
-
-```bash
-npm install
-npm test          # domain unit tests + API PPD smoke
-npm run dev       # API http://127.0.0.1:5080  +  web http://127.0.0.1:5173
-```
-
-Open **http://127.0.0.1:5173** (Vite proxies `/api` to the API).
-
-Demo walkthrough:
-
-1. **Documents** — seeded synthetic livrables (clé `36 / 9351.3`, etc.).
-2. **Import PPD** — default demo is official `fixtures/Import_Rapide_exemple.xlsx` (button *Charger Import_Rapide_exemple.xlsx*, mode rapide / `Nr Livrable`). Jalons-only: `Import_Rapide_Jalons.xlsx`. Full template: `PPD_Template.xlsx`.
-3. Compare UI (écarts / nouveaux / erreurs lookup). Apply. Rows with LDD errors (e.g. unknown fournisseur) are skipped.
-4. **Bordereaux** — create, attach documents, export pack `EXPORT_BX/MI20_BORD_<code>/`, download ZIP.
-5. Files land under `storage/` (or `MI20_STORAGE_ROOT`).
-
-Auth is **off** by default (`AUTH_DISABLED=true`). See Entra ID below for production.
-
-Optional Docker (API + SQLite volume):
-
-```bash
-docker compose up --build
-```
-
-## SharePoint host (Alstom)
-
-Teammates open a **site page** on this library, not Access.
+## SharePoint host (Alstom) — later, does not block local demo
 
 | | |
 |---|---|
 | Site | [https://alstomgroup.sharepoint.com/sites/BT_BTPIIMaroc-GestionDoc](https://alstomgroup.sharepoint.com/sites/BT_BTPIIMaroc-GestionDoc) |
 | Folder | `Shared Documents/Gestion Doc/MI20` |
 | Embed page | `SitePages/MI20-Arbo.aspx` on that site |
-| API env | `SHAREPOINT_SITE_URL` (that site) · `SHAREPOINT_DRIVE_PATH=/GestionDoc/MI20` |
+| API env | `SHAREPOINT_SITE_URL` · `SHAREPOINT_DRIVE_PATH=/GestionDoc/MI20` |
 
-Step-by-step (Azure HTTPS + Entra for **alstomgroup.com**, `frame-ancestors` for `*.sharepoint.com`, **Embed** web part vs SPFx App Catalog, Graph root for `EXPORT_PPD` / `EXPORT_BX`): **[`docs/DEPLOY_SHAREPOINT.md`](docs/DEPLOY_SHAREPOINT.md)**.
-
-SPFx package notes: [`spfx/README.md`](spfx/README.md). Tenant App Catalog often needs IT; the stock **Embed** web part pointing at the SPA URL does not.
-
-## Entra ID (Azure AD) checklist
-
-Register apps in the **alstomgroup.com** tenant (full Azure + consent steps: [`docs/DEPLOY_SHAREPOINT.md`](docs/DEPLOY_SHAREPOINT.md)).
-
-1. App registration **SPA** (apps/web): redirect URI `https://<spa>/`, expose nothing (public client). Enable ID tokens if using MSAL popup/redirect.
-2. App registration **API** (apps/api): expose scope `access_as_user` (`api://<api-id>/access_as_user`).
-3. SPA registration → API permissions → that scope. Admin consent if required.
-4. API env:
-
-   ```
-   AUTH_DISABLED=false
-   AZURE_AD_TENANT_ID=<tenant>
-   AZURE_AD_CLIENT_ID=<api-app-id>
-   AZURE_AD_API_AUDIENCE=api://<api-app-id>
-   AZURE_AD_API_SCOPE=api://<api-app-id>/access_as_user
-   AZURE_AD_REDIRECT_URI=https://<spa>
-   ```
-
-5. SPA: `VITE_API_URL=https://<api>` and later wire `@azure/msal-browser` to attach Bearer tokens (config is already served at `GET /api/auth/config`). Demo skips MSAL when `authDisabled` is true.
+Steps: [`docs/DEPLOY_SHAREPOINT.md`](docs/DEPLOY_SHAREPOINT.md). Entra is **not** required for `npm run dev` / Docker.
 
 ## PPD rules implemented
 
@@ -120,21 +116,36 @@ From `docs/handoff/config.txt` `[PPD]` + `import_columns.csv`:
 - Natures: `T`, `TITRE`, `LIGNE`, `LDD`, `LDDDomaineChargeur`, `OUINON`, `J`, `AUTORISANT`
 - LIGNE → `GroupeLigne` + `IndiceLigne` (ex. `36 / 9351.3`)
 - LDD match: `UCase(Trim(Nom))`
-- Pipeline: Excel (SheetJS bulk, **not** Excel COM) → `import_raw` staging → user confirm → merge `document` + `programmation_jalon` (unpivot `Jalon_*_1..24`)
-- Official files: `fixtures/` (see `fixtures/README.md`). Default smoke/demo import: **Import_Rapide_exemple.xlsx**. Export fills **PPD_Template.xlsx**. No live `EXPORT_PPD` dumps.
-- Export: official template + RATP hide **C, AA, AB, AC**
+- Pipeline: Excel (SheetJS) → `import_raw` staging → user confirm → merge `document` + `programmation_jalon` + `doc_histo`
+- Apply skips rows with lookup errors; they remain visible on the Erreurs LDD tab
 
 ## Bordereau rules
 
-- Template file: official `fixtures/MI20_BORD_TEMPLATE_M5_V12.xls` (copied into the pack; SheetJS cannot parse the protected .xls)
+- Template: official `fixtures/MI20_BORD_TEMPLATE_M5_V12.xls` (copied into the pack)
 - Output: `EXPORT_BX/MI20_BORD_<code>/`
 - Entities: `bordereau` + `envoi`
+- ZIP download builds the pack if it is missing
+
+## Fiches d'avis / ImportRetoursRATP
+
+- Header: `NumLivrable` (`titrePremiereColonneXLS_RetoursRATP`)
+- Staging: `import_fa_raw` + `import_batch.Mode = 'fa'`
+- Apply: insert `fiche_avis`; update latest `envoi` (RéponseFicheAvis, FichierFicheAvis_Envoye, dates, lot); upsert `revision` + `FichierFicheAvis_AEnvoyer`
+- Unknown `GroupeLigne / IndiceLigne` → row error, lot continues
 
 ## Data
 
-SQLite schema mirrors Access tables in `docs/handoff/data_schema.txt` / `temp_schema.txt`. Azure SQL starter: `docs/sql/azure.sql`.
+- **SQLite** (default `npm run dev`) or **Postgres** (`DATABASE_URL` / docker-compose). Schema in `apps/api/src/schema.ts` (indexes for Access-scale keys). Azure SQL script remains `docs/sql/azure.sql` for a later IT mandate — not used by the Node API.
+- Seed: lookups + jalons + 3 canonical docs (36/9351.3, 36/476, 40/12) + optional synthetic `100+ / n` documents. **Not** the 31k production DB.
 
-Seed: lookups + a few documents. **Not** the 31k production DB.
+## Remaining gaps (honest)
+
+- **KPI / bilan / docts autorisation**: templates download; Access CopyFromRecordset fill is not implemented.
+- **GitHub Pages** remains a localStorage demo (email click). Durable work is `npm run dev` / Docker + Postgres.
+- **Azure SQL** script exists (`docs/sql/azure.sql`) but the Node API talks SQLite or Postgres only.
+- **SharePoint / Entra / Graph** is optional production hosting — not required for the three flows.
+- **Production Access dump** (~31k documents) is not in the repo. Scale is proven with synthetic seed + indexes; import a real PPD locally, do not commit it.
+- **Form_ARCHI** is out of MVP (handoff).
 
 ## License
 

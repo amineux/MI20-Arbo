@@ -15,6 +15,7 @@ const DEMO_FIXTURES = [
   "KPI1_Template.xlsm",
   "BilanEnvois_Template.xlsx",
   "DoctsAutorisation_Template.xlsx",
+  "Import_Retours_RATP_exemple.xlsx",
 ];
 
 function copyDemoFixturesPlugin(): Plugin {

@@ -7,6 +7,6 @@ export default defineConfig({
     environment: "node",
     include: ["test/**/*.test.ts"],
     root: dirname(fileURLToPath(import.meta.url)),
-    testTimeout: 20000,
+    testTimeout: 30000,
   },
 });

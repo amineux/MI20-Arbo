@@ -39,6 +39,7 @@ interface ImportSummary {
 interface ApplyResult {
   appliedDocuments: number;
   appliedJalons: number;
+  skippedErrors?: number;
   alreadyApplied?: boolean;
 }
 
@@ -46,7 +47,8 @@ interface ApplyResult {
 let autorunInFlight = false;
 
 function applyToastBody(r: ApplyResult): string {
-  return `${r.appliedDocuments} document(s) · ${r.appliedJalons} jalon(s). Lignes en erreur LDD ignorées.`;
+  const skipped = r.skippedErrors ? ` · ${r.skippedErrors} ligne(s) LDD ignorée(s)` : "";
+  return `${r.appliedDocuments} document(s) · ${r.appliedJalons} jalon(s)${skipped}.`;
 }
 
 export function ImportPpdPage() {
@@ -207,6 +209,9 @@ export function ImportPpdPage() {
         </Button>
         <Button disabled={busy} onClick={() => runDemo("Import_Rapide_Jalons.xlsx")}>
           Charger Import_Rapide_Jalons.xlsx
+        </Button>
+        <Button disabled={busy} onClick={() => { setRapide(false); void runDemo("PPD_Template.xlsx"); }}>
+          Charger PPD_Template.xlsx (mode complet)
         </Button>
         {busy ? <Spinner size="tiny" /> : null}
       </div>

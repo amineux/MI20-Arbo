@@ -11,6 +11,7 @@ export {
   BX_TEMPLATE_FILE,
   BX_TEMPLATE_LEGACY_FILE,
   BX_SAMPLE_FILE,
+  FA_RAPIDE_FIXTURE,
   OFFICIAL_TEMPLATES,
   isOfficialTemplateName,
 } from "./fixtures-names.js";

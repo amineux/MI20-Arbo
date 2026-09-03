@@ -7,6 +7,7 @@ Official templates from `BASE ARBO MI20/SRV/TEMPLATE/` in the Arbo zip.
 | PPD_Template.xlsx | Full PPD export/import template (~2.2MB) |
 | Import_Rapide_exemple.xlsx | Small rapide import example |
 | Import_Rapide_Jalons.xlsx | Jalons-only rapide import |
+| Import_Retours_RATP_exemple.xlsx | Synthetic fiches d'avis / ImportRetoursRATP (header NumLivrable) |
 | MI20_BORD_TEMPLATE_M5_V12.xls | Current bordereau template |
 | BX_Template.xls | Older BX template |
 | KPI1_Template.xlsm | KPI export |
@@ -17,5 +18,11 @@ Official templates from `BASE ARBO MI20/SRV/TEMPLATE/` in the Arbo zip.
 
 **Not included by default:** `EXPORT_PPD/PPD_MI20_*.xlsx` (~2.2MB each) — live CAF/RATP production exports. Ask if you need a sanitized subset of headers + few rows.
 
-The API copies these files into `storage/templates/` at startup. Demo import uses `Import_Rapide_exemple.xlsx` by default (`POST /api/imports/ppd/demo`). PPD export fills `PPD_Template.xlsx`. Bordereau packs include `MI20_BORD_TEMPLATE_M5_V12.xls` (workbook protection: copied as binary, not parsed).
+The API copies these files into `storage/templates/` at startup. Demo import uses `Import_Rapide_exemple.xlsx` by default (`POST /api/imports/ppd/demo`). FA demo: `POST /api/imports/fa/demo`. PPD export fills `PPD_Template.xlsx`. Bordereau packs include `MI20_BORD_TEMPLATE_M5_V12.xls` (workbook protection: copied as binary, not parsed).
+
+Regenerate the synthetic FA example:
+
+```bash
+npm run seed:fa -w @mi20/domain
+```
 

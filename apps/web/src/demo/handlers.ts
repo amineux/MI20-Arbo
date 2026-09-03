@@ -4,15 +4,19 @@ import {
   DEFAULT_RAPIDE_FIXTURE,
   JALONS_RAPIDE_FIXTURE,
   OFFICIAL_TEMPLATES,
+  PPD_TEMPLATE_FILE,
   PPD_TEMPLATE_SMALL_FILE,
+  FA_RAPIDE_FIXTURE,
   computeDifferences,
   fillOfficialPpdTemplate,
   isOfficialTemplateName,
   jalonsToRawFields,
   matchJalonDef,
+  parseFaSheet,
   parseImportColumnsCsv,
   parsePpdSheet,
   parseWorkbookToAoa,
+  formatLigne,
   type DocumentSnapshot,
   type ImportColumn,
 } from "@mi20/domain/browser";
@@ -391,6 +395,152 @@ function applyImport(batchId: number) {
   return { appliedDocuments, appliedJalons, alreadyApplied: false };
 }
 
+async function importFa(buffer: Uint8Array, fileName: string) {
+  const s = getState();
+  const aoa = parseWorkbookToAoa(buffer, "FA");
+  const parsed = parseFaSheet(aoa);
+  const now = new Date().toISOString();
+  let errorCount = 0;
+  let matchedCount = 0;
+  const batchId = nextId();
+  s.importBatches.push({
+    Id: batchId,
+    ImportUser: "demo.user",
+    ImportTime: now,
+    FileName: fileName,
+    Mode: "fa",
+    Status: "staged",
+    Warning: parsed.warnings.join("\n"),
+    RowCount: parsed.rows.length,
+    ErrorCount: 0,
+  });
+  for (const row of parsed.rows) {
+    const doc =
+      row.groupeLigne != null
+        ? s.documents.find(
+            (d) => Number(d.GroupeLigne) === row.groupeLigne && String(d.IndiceLigne) === row.indiceLigne,
+          )
+        : undefined;
+    if (row.groupeLigne == null) {
+      errorCount++;
+    } else if (!doc) {
+      row.errors.push(
+        `Document ${formatLigne(row.groupeLigne, row.indiceLigne)} introuvable — la fiche avis n'a pas de livrable cible.`,
+      );
+      errorCount++;
+    } else {
+      matchedCount++;
+    }
+    s.importFaRaw.push({
+      Id: nextId(),
+      BatchId: batchId,
+      ligneEXCEL: row.ligneExcel,
+      GroupeLigne: row.groupeLigne,
+      IndiceLigne: row.indiceLigne,
+      Revision: row.revision,
+      Jalon: row.jalon,
+      Version: row.version,
+      EstPrevisionnel: row.estPrevisionnel ? 1 : 0,
+      DatePrevisionnelle: row.datePrevisionnelle,
+      ReponseFicheAvis: row.reponseFicheAvis,
+      FichierFicheAvis: row.fichierFicheAvis,
+      DateReceptionRATP: row.dateReceptionRATP,
+      NumLotRATP: row.numLotRATP,
+      CommentairesRATP: row.commentairesRATP,
+      CommentairesSup: row.commentairesSup,
+      RefuseAuChargement: row.refuseAuChargement,
+      NomUtilisateur: row.nomUtilisateur || "demo.user",
+      erreur: row.errors.join("\n") || null,
+      IdDocument: doc?.Id ?? null,
+    });
+  }
+  const batch = s.importBatches.find((b) => b.Id === batchId);
+  if (batch) batch.ErrorCount = errorCount;
+  saveState();
+  return { batchId, rowCount: parsed.rows.length, errorCount, matchedCount, warnings: parsed.warnings };
+}
+
+function applyFa(batchId: number) {
+  const s = getState();
+  const batch = s.importBatches.find((b) => b.Id === batchId);
+  if (!batch) throw new DemoHttpError("Lot d'import introuvable", 404);
+  if (String(batch.Status) === "applied") {
+    return {
+      appliedFiches: Number(batch.AppliedFiches ?? 0),
+      updatedEnvois: 0,
+      updatedRevisions: 0,
+      skippedErrors: 0,
+      alreadyApplied: true,
+    };
+  }
+  let appliedFiches = 0;
+  let updatedEnvois = 0;
+  let updatedRevisions = 0;
+  let skippedErrors = 0;
+  const now = new Date().toISOString();
+  for (const raw of s.importFaRaw.filter((r) => r.BatchId === batchId)) {
+    if (raw.erreur) {
+      skippedErrors++;
+      continue;
+    }
+    const doc = s.documents.find((d) => d.Id === Number(raw.IdDocument));
+    if (!doc) {
+      skippedErrors++;
+      continue;
+    }
+    const label = String(raw.Revision ?? doc.Revision ?? "A");
+    doc.Revision = label;
+    const rev = s.revisions.find((r) => r.IdDocument === doc.Id);
+    if (rev) {
+      rev.Revision = label;
+      rev.FichierFicheAvis_AEnvoyer = raw.FichierFicheAvis ?? rev.FichierFicheAvis_AEnvoyer;
+      updatedRevisions++;
+    } else {
+      s.revisions.push({
+        Id: nextId(),
+        Revision: label,
+        IdDocument: doc.Id,
+        GroupeLigne: doc.GroupeLigne,
+        IndiceLigne: doc.IndiceLigne,
+        Titre: doc.Titre,
+        NomUtilisateur: "demo.user",
+        EstActive: 1,
+        FichierFicheAvis_AEnvoyer: raw.FichierFicheAvis ?? null,
+        CreatedAt: now,
+      });
+      updatedRevisions++;
+    }
+    const envoi = [...s.envois].reverse().find((e) => e.IdDocument === doc.Id);
+    if (envoi) {
+      envoi.ReponseFicheAvis = raw.ReponseFicheAvis;
+      envoi.FichierFicheAvis_Envoye = raw.FichierFicheAvis;
+      envoi.Revision = label;
+      updatedEnvois++;
+    }
+    s.ratpReturns.push({
+      Id: nextId(),
+      IdDocument: doc.Id,
+      IdEnvoi: envoi?.Id ?? null,
+      GroupeLigne: doc.GroupeLigne,
+      IndiceLigne: doc.IndiceLigne,
+      Titre: doc.Titre,
+      Avis: raw.ReponseFicheAvis ?? "FA",
+      ReponseFicheAvis: raw.ReponseFicheAvis ?? "FA",
+      Statut: raw.ReponseFicheAvis ?? "FA",
+      FichierFicheAvis: raw.FichierFicheAvis,
+      NomFichier: raw.FichierFicheAvis,
+      Commentaire: raw.CommentairesRATP ?? "",
+      NomUtilisateur: "demo.user",
+      CreatedAt: now,
+    });
+    appliedFiches++;
+  }
+  batch.Status = "applied";
+  batch.AppliedFiches = appliedFiches;
+  saveState();
+  return { appliedFiches, updatedEnvois, updatedRevisions, skippedErrors, alreadyApplied: false };
+}
+
 async function readJson(init?: RequestInit): Promise<Record<string, unknown>> {
   if (!init?.body) return {};
   if (typeof init.body === "string") {
@@ -409,6 +559,19 @@ function routeParam(match: RegExpMatchArray, index: number): string {
   return decodeURIComponent(value);
 }
 
+function demoStats(s: ReturnType<typeof getState>) {
+  return {
+    documents: s.documents.length,
+    jalonsProgrammes: s.programmation.length,
+    bordereaux: s.bordereaux.length,
+    envois: s.envois.length,
+    revisions: s.revisions.length,
+    retoursRatp: s.ratpReturns.length,
+    histo: s.histo.length,
+    dialect: "browser",
+  };
+}
+
 export async function handleDemoApi(url: URL, init?: RequestInit): Promise<Response> {
   const method = (init?.method ?? "GET").toUpperCase();
   const path = url.pathname.replace(/\/+$/, "") || "/";
@@ -416,7 +579,7 @@ export async function handleDemoApi(url: URL, init?: RequestInit): Promise<Respo
   const s = getState();
 
   if (path === "/api/health" && method === "GET") {
-    return json({ ok: true, name: "MI20 Arbo", storage: "browser-demo", time: new Date().toISOString() });
+    return json({ ok: true, name: "MI20 Arbo", storage: "browser-demo", dialect: "browser", time: new Date().toISOString() });
   }
   if (path === "/api/auth/config" && method === "GET") {
     return json({ authDisabled: true, clientId: "", tenantId: "", apiScope: "", redirectUri: "" });
@@ -432,8 +595,11 @@ export async function handleDemoApi(url: URL, init?: RequestInit): Promise<Respo
       defaultImportFixture: DEFAULT_RAPIDE_FIXTURE,
       templates: OFFICIAL_TEMPLATES,
       publicDemo: true,
+      dialect: "browser",
+      stats: demoStats(s),
     });
   }
+  if (path === "/api/stats" && method === "GET") return json(demoStats(s));
   if (path === "/api/lock" && method === "GET") return json(s.lock);
   if (path === "/api/lock" && method === "POST") {
     const body = await readJson(init);
@@ -581,10 +747,32 @@ export async function handleDemoApi(url: URL, init?: RequestInit): Promise<Respo
   }
 
   if (path === "/api/imports/ppd/demo" && method === "POST") {
-    const fileName = q.get("file") === JALONS_RAPIDE_FIXTURE ? JALONS_RAPIDE_FIXTURE : DEFAULT_RAPIDE_FIXTURE;
-    const rapide = q.get("rapide") !== "false";
-    const buffer = await loadFixtureBytes(fileName);
+    const allowed = new Set([DEFAULT_RAPIDE_FIXTURE, JALONS_RAPIDE_FIXTURE, PPD_TEMPLATE_FILE, PPD_TEMPLATE_SMALL_FILE]);
+    let fileName = allowed.has(q.get("file") ?? "") ? (q.get("file") as string) : DEFAULT_RAPIDE_FIXTURE;
+    const rapide = q.get("rapide") !== "false" && fileName !== PPD_TEMPLATE_FILE && fileName !== PPD_TEMPLATE_SMALL_FILE;
+    let buffer: Uint8Array;
+    try {
+      buffer = await loadFixtureBytes(fileName);
+    } catch {
+      if (fileName === PPD_TEMPLATE_FILE) {
+        fileName = PPD_TEMPLATE_SMALL_FILE;
+        buffer = await loadFixtureBytes(fileName);
+      } else {
+        throw new DemoHttpError(`Fixture ${fileName} introuvable`, 404);
+      }
+    }
     return json(await importPpd(buffer, fileName, rapide || fileName === JALONS_RAPIDE_FIXTURE));
+  }
+  if (path === "/api/imports/fa/demo" && method === "POST") {
+    const buffer = await loadFixtureBytes(FA_RAPIDE_FIXTURE);
+    return json(await importFa(buffer, FA_RAPIDE_FIXTURE));
+  }
+  if (path === "/api/imports/fa" && method === "POST") {
+    if (!(init?.body instanceof FormData)) throw new DemoHttpError("Fichier Excel fiches d'avis manquant", 400);
+    const file = init.body.get("file");
+    if (!(file instanceof File)) throw new DemoHttpError("Fichier Excel fiches d'avis manquant", 400);
+    const buffer = new Uint8Array(await file.arrayBuffer());
+    return json(await importFa(buffer, file.name));
   }
   if (path === "/api/imports/ppd" && method === "POST") {
     if (!(init?.body instanceof FormData)) throw new DemoHttpError("Fichier Excel PPD manquant", 400);
@@ -602,15 +790,23 @@ export async function handleDemoApi(url: URL, init?: RequestInit): Promise<Respo
     const id = Number(importId[1]);
     const batch = s.importBatches.find((b) => b.Id === id);
     if (!batch) throw new DemoHttpError("Import introuvable", 404);
+    if (String(batch.Mode) === "fa") {
+      const raw = s.importFaRaw.filter((r) => r.BatchId === id).sort((a, b) => Number(a.ligneEXCEL) - Number(b.ligneEXCEL));
+      const errors = raw.filter((r) => r.erreur);
+      return json({ batch, raw, compare: [], nouveaux: [], errors, kind: "fa" });
+    }
     const raw = s.importRaw.filter((r) => r.BatchId === id).sort((a, b) => Number(a.ligneEXCEL) - Number(b.ligneEXCEL));
     const compare = s.importCompare.filter((r) => r.BatchId === id && r.NouveauDocument === 0);
     const nouveaux = s.importCompare.filter((r) => r.BatchId === id && r.NouveauDocument === 1);
     const errors = raw.filter((r) => r.erreur);
-    return json({ batch, raw, compare, nouveaux, errors });
+    return json({ batch, raw, compare, nouveaux, errors, kind: "ppd" });
   }
   const apply = path.match(/^\/api\/imports\/(\d+)\/apply$/);
   if (apply && method === "POST") {
-    return json(applyImport(Number(apply[1])));
+    const batchId = Number(apply[1]);
+    const batch = s.importBatches.find((b) => b.Id === batchId);
+    if (batch && String(batch.Mode) === "fa") return json(applyFa(batchId));
+    return json(applyImport(batchId));
   }
 
   if (path === "/api/exports/ppd" && method === "POST") {
@@ -802,19 +998,26 @@ export async function handleDemoApi(url: URL, init?: RequestInit): Promise<Respo
     return json(row);
   }
   if (path === "/api/ratp-returns" && method === "GET") {
-    return json({ rows: s.ratpReturns, stub: true, accessForm: "Form_SaisieRetoursRATP" });
+    return json({ rows: s.ratpReturns, stub: false, accessForm: "Form_SaisieRetoursRATP" });
   }
   if (path === "/api/ratp-returns" && method === "POST") {
     const body = await readJson(init);
     const id = nextId();
     const doc = body.idDocument ? s.documents.find((d) => d.Id === Number(body.idDocument)) : undefined;
+    if (!doc) throw new DemoHttpError("Document obligatoire pour saisir un retour RATP", 400);
+    const avis = String(body.avis ?? "FA");
+    const envoi = [...s.envois].reverse().find((e) => e.IdDocument === doc.Id);
+    if (envoi) envoi.ReponseFicheAvis = avis;
     const row = {
       Id: id,
-      IdDocument: doc?.Id ?? (body.idDocument ?? null),
-      GroupeLigne: doc?.GroupeLigne ?? null,
-      IndiceLigne: doc?.IndiceLigne ?? null,
-      Titre: doc?.Titre ?? null,
-      Avis: String(body.avis ?? "FA"),
+      IdDocument: doc.Id,
+      IdEnvoi: envoi?.Id ?? null,
+      GroupeLigne: doc.GroupeLigne,
+      IndiceLigne: doc.IndiceLigne,
+      Titre: doc.Titre,
+      Avis: avis,
+      ReponseFicheAvis: avis,
+      Statut: avis,
       Commentaire: String(body.commentaire ?? ""),
       NomUtilisateur: "demo.user",
       CreatedAt: new Date().toISOString(),
@@ -835,6 +1038,7 @@ export async function handleDemoApi(url: URL, init?: RequestInit): Promise<Respo
         revisions: s.revisions.length,
         retoursRatp: s.ratpReturns.length,
         histo: s.histo.length,
+        dialect: "browser",
       },
     });
   }

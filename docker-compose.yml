@@ -1,8 +1,46 @@
-# Optional demo: API + persisted SQLite volume.
-# Local without Docker: `npm install && npm run dev` (API :5080, web :5173).
+# Postgres is the default docker path (Access-scale storage).
+# SQLite fallback: omit DATABASE_URL and set MI20_DB_PATH (see service `api-sqlite` profile).
+#
+# Local without Docker: `npm install && npm run dev` (API :5080, web :5173, SQLite in apps/api/data).
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: mi20
+      POSTGRES_PASSWORD: mi20
+      POSTGRES_DB: mi20
+    ports:
+      - "5432:5432"
+    volumes:
+      - mi20-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mi20 -d mi20"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
   api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - "5080:5080"
+    environment:
+      PORT: "5080"
+      AUTH_DISABLED: "true"
+      DATABASE_URL: postgres://mi20:mi20@postgres:5432/mi20
+      MI20_STORAGE_ROOT: /data/storage
+      MI20_SEED_DOCS: "3000"
+      WEB_DIST: /app/apps/web/dist
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - mi20-files:/data
+
+  api-sqlite:
+    profiles: ["sqlite"]
     build:
       context: .
       dockerfile: apps/api/Dockerfile
@@ -13,8 +51,11 @@ services:
       AUTH_DISABLED: "true"
       MI20_DB_PATH: /data/mi20.db
       MI20_STORAGE_ROOT: /data/storage
+      MI20_SEED_DOCS: "3000"
+      WEB_DIST: /app/apps/web/dist
     volumes:
-      - mi20-data:/data
+      - mi20-files:/data
 
 volumes:
-  mi20-data:
+  mi20-pg:
+  mi20-files:

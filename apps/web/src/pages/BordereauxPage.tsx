@@ -4,6 +4,7 @@ import {
   Field,
   Input,
   Option,
+  Spinner,
   Table,
   TableBody,
   TableCell,
@@ -31,9 +32,14 @@ export function BordereauxPage() {
   const [leaders, setLeaders] = useState<Array<{ id: number; nom: string }>>([]);
   const [leaderId, setLeaderId] = useState<string>("");
   const [numero, setNumero] = useState("");
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  const reload = () => api.get<{ rows: Bx[] }>("/api/bordereaux").then((r) => setRows(r.rows));
+  const reload = () =>
+    api
+      .get<{ rows: Bx[] }>("/api/bordereaux")
+      .then((r) => setRows(r.rows))
+      .finally(() => setLoading(false));
 
   useEffect(() => {
     reload();
@@ -89,7 +95,9 @@ export function BordereauxPage() {
           Créer le bordereau
         </Button>
       </div>
-      {rows.length === 0 ? (
+      {loading ? (
+        <Spinner label="Chargement des bordereaux…" />
+      ) : rows.length === 0 ? (
         <EmptyState title="Aucun bordereau" detail="Choisissez un leader technique puis créez l'en-tête." />
       ) : (
         <div className="mi20-table-wrap">

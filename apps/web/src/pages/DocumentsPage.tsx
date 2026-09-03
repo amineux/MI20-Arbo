@@ -41,7 +41,7 @@ export function DocumentsPage() {
   const [page, setPage] = useState(1);
   const [data, setData] = useState<{ total: number; rows: DocRow[] } | null>(null);
   const [fournisseurs, setFournisseurs] = useState<LookupOpt[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -49,8 +49,8 @@ export function DocumentsPage() {
   }, []);
 
   useEffect(() => {
+    setLoading(true);
     const t = setTimeout(() => {
-      setLoading(true);
       const q = new URLSearchParams({ search, page: String(page), pageSize: "50" });
       if (fournisseurId) q.set("fournisseurId", fournisseurId);
       api
@@ -58,7 +58,7 @@ export function DocumentsPage() {
         .then(setData)
         .catch((e: Error) => setError(e.message))
         .finally(() => setLoading(false));
-    }, 200);
+    }, search ? 200 : 0);
     return () => clearTimeout(t);
   }, [search, fournisseurId, page]);
 
@@ -96,7 +96,7 @@ export function DocumentsPage() {
       </div>
       {loading ? <Spinner label="Chargement" /> : null}
       {error ? <Body1>{error}</Body1> : null}
-      {!loading && (data?.rows.length ?? 0) === 0 ? (
+      {!loading && data && data.rows.length === 0 ? (
         <EmptyState
           title="Aucun document"
           detail="Ajustez la recherche, ou importez un classeur PPD pour alimenter la liste."

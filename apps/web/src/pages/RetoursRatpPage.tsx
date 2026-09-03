@@ -39,7 +39,7 @@ interface FaBatch {
 
 export function RetoursRatpPage() {
   const { toast } = useToast();
-  const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
+  const [rows, setRows] = useState<Array<Record<string, unknown>> | null>(null);
   const [docs, setDocs] = useState<DocOpt[]>([]);
   const [avis, setAvis] = useState("FA");
   const [commentaire, setCommentaire] = useState("");
@@ -275,7 +275,7 @@ export function RetoursRatpPage() {
               Enregistrer un retour
             </Button>
           </div>
-          {rows.length === 0 ? (
+          {rows === null ? null : rows.length === 0 ? (
             <EmptyState
               title="Aucun retour"
               detail="Saisissez un avis, ou importez un classeur Excel (colonne NumLivrable)."

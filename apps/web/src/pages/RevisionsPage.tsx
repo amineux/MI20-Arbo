@@ -31,7 +31,7 @@ interface JalonOpt {
 
 export function RevisionsPage() {
   const { toast } = useToast();
-  const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
+  const [rows, setRows] = useState<Array<Record<string, unknown>> | null>(null);
   const [docs, setDocs] = useState<DocOpt[]>([]);
   const [jalons, setJalons] = useState<JalonOpt[]>([]);
   const [revision, setRevision] = useState("B");
@@ -139,7 +139,7 @@ export function RevisionsPage() {
           Créer une révision
         </Button>
       </div>
-      {rows.length === 0 ? (
+      {rows === null ? null : rows.length === 0 ? (
         <EmptyState title="Aucune révision" detail="Choisissez un document, un jalon, puis un indice." />
       ) : (
         <div className="mi20-table-wrap">

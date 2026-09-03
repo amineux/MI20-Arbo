@@ -66,6 +66,8 @@ describe.skipIf(!process.env.DATABASE_URL)("Postgres live seed (DATABASE_URL)", 
       await seed(db, { extraDocs: 0 });
       const caf = await lookupId(db, "fournisseur", "caf");
       expect(caf).toBeGreaterThan(0);
+      await expect(db.run("INSERT INTO lookup_row (table_key, nom) VALUES (?, ?)", ["fournisseur", "caf"])).rejects.toThrow();
+      await expect(db.run("INSERT INTO lookup_row (table_key, nom) VALUES (?, ?)", ["fournisseur", "Caf"])).rejects.toThrow();
     } finally {
       await db.close();
     }

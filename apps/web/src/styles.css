@@ -51,3 +51,44 @@ body { margin: 0; }
   color: #616161;
   margin-top: 4px;
 }
+
+.mi20-import-panel {
+  margin: 16px 0 20px;
+  padding: 18px 20px;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(27, 54, 93, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.mi20-import-primary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+}
+.mi20-file-chip, .mi20-file-hint {
+  color: #616161;
+  font-size: 13px;
+}
+.mi20-file-chip b { color: #1b365d; }
+.mi20-demo-details {
+  border-top: 1px solid #eee;
+  padding-top: 10px;
+  color: #616161;
+  font-size: 13px;
+}
+.mi20-demo-details summary {
+  cursor: pointer;
+  user-select: none;
+  font-weight: 600;
+  color: #424242;
+}
+.mi20-demo-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}

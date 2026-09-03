@@ -174,13 +174,19 @@ export async function importPpdBuffer(args: {
   });
 
   await args.storage.write(`IMPORT_PPD/${batchId}_${args.fileName}`, args.buffer);
+  const warnings = [...parsed.warnings];
+  if (parsed.rows.length === 0) {
+    warnings.push(
+      "Aucune ligne de données (Num Liv. / Nr Livrable vides). Le template officiel est un calque vide — importez un classeur rempli.",
+    );
+  }
   return {
     batchId,
     rowCount: parsed.rows.length,
     errorCount,
     newCount,
     diffCount: diffs.length,
-    warnings: parsed.warnings,
+    warnings,
   };
 }
 

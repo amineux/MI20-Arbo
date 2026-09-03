@@ -25,9 +25,21 @@ export function detectHeaderRow(
   config: PpdConfig = DEFAULT_PPD_CONFIG,
 ): { rowIndex: number; mode: "full" | "rapide" } | null {
   const fullKeys = new Set(
-    [config.firstColumnTitle, "N° de ligne", "Numero de ligne", "Numéro de ligne"].map(normalizeHeader),
+    [
+      config.firstColumnTitle,
+      "N° de ligne",
+      "Numero de ligne",
+      "Numéro de ligne",
+      "Num Liv",
+      "Num. Liv.",
+      "N° Liv.",
+      "N°Liv.",
+      "N Liv.",
+    ].map(normalizeHeader),
   );
-  const rapideKeys = new Set([normalizeHeader(config.firstColumnTitleRapide)]);
+  const rapideKeys = new Set(
+    [config.firstColumnTitleRapide, "Nr. Livrable", "N° livrable", "Numero livrable"].map(normalizeHeader),
+  );
   const limit = Math.min(sheet.length, 100);
   for (let i = 0; i < limit; i++) {
     const row = sheet[i] ?? [];
@@ -83,10 +95,17 @@ export function parsePpdSheet(
     );
   }
 
+  const ligneCol = columns.find((c) => c.nature === "LIGNE");
+  const ligneIdx = ligneCol ? colIndex.get(ligneCol) : undefined;
+
   const rows: StagedDocument[] = [];
   for (let r = detected.rowIndex + 1; r < sheet.length; r++) {
     const dataRow = sheet[r] ?? [];
     if (dataRow.every((c) => cellToText(c) === "")) continue;
+    if (ligneIdx !== undefined && cellToText(dataRow[ligneIdx]) === "") {
+      // Title / filter / totals rows under the header — not livrables.
+      continue;
+    }
 
     const staged: StagedDocument = {
       ligneExcel: r + 1,

@@ -24,6 +24,31 @@ import { readOfficialFixture, seedOfficialTemplates } from "../src/templates.js"
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), "mi20-"));
 
+function multipartPayload(fileName: string, file: Buffer, fields: Record<string, string> = {}): {
+  payload: Buffer;
+  headers: Record<string, string>;
+} {
+  const boundary = "----MI20TestBoundary";
+  const chunks: Buffer[] = [];
+  chunks.push(
+    Buffer.from(
+      `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${fileName}"\r\nContent-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\r\n\r\n`,
+    ),
+  );
+  chunks.push(file);
+  chunks.push(Buffer.from("\r\n"));
+  for (const [name, value] of Object.entries(fields)) {
+    chunks.push(
+      Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${value}\r\n`),
+    );
+  }
+  chunks.push(Buffer.from(`--${boundary}--\r\n`));
+  return {
+    payload: Buffer.concat(chunks),
+    headers: { "content-type": `multipart/form-data; boundary=${boundary}` },
+  };
+}
+
 async function harness() {
   const dir = tmp();
   const db = await openMemoryDatabase();
@@ -199,6 +224,89 @@ describe("PPD import smoke (official fixtures + apply persist)", () => {
       payload: { nom: "Caf" },
     });
     expect(mixed.statusCode).toBe(409);
+    await h.app.close();
+    await h.db.close();
+  });
+
+  it("multipart-uploads a new full PPD (Num Liv.) with a trailing field, applies, and search finds it", async () => {
+    const h = await harness();
+    dirs.push(h.dir);
+    const aoa: unknown[][] = [
+      ["Num Liv.", "Titre du document", "Langue", "Fournisseur"],
+      ["70 / 1", "NOUVEAU PPD UPLOAD", "FR", "CAF"],
+      ["70 / 2", "NOUVEAU PPD UPLOAD 2", "FR", "CAF"],
+    ];
+    const buf = writeAoaWorkbook(aoa, "PPD");
+    const { payload, headers } = multipartPayload("nouveau_ppd.xlsx", buf, { rapide: "false" });
+    const staged = await h.app.inject({
+      method: "POST",
+      url: "/api/imports/ppd?rapide=false",
+      headers,
+      payload,
+    });
+    expect(staged.statusCode).toBe(200);
+    const body = staged.json() as { batchId: number; rowCount: number; newCount: number; errorCount: number };
+    expect(body.rowCount).toBe(2);
+    expect(body.newCount).toBe(2);
+    expect(body.errorCount).toBe(0);
+
+    const detail = await h.app.inject({ method: "GET", url: `/api/imports/${body.batchId}` });
+    expect(detail.statusCode).toBe(200);
+    expect((detail.json() as { nouveaux: unknown[] }).nouveaux.length).toBeGreaterThan(0);
+
+    const applied = await h.app.inject({ method: "POST", url: `/api/imports/${body.batchId}/apply` });
+    expect(applied.statusCode).toBe(200);
+    expect((applied.json() as { appliedDocuments: number }).appliedDocuments).toBe(2);
+
+    const found = await h.app.inject({ method: "GET", url: "/api/documents?search=70%20/%201" });
+    expect(found.statusCode).toBe(200);
+    const docs = found.json() as { total: number; rows: Array<{ Titre: string }> };
+    expect(docs.total).toBeGreaterThanOrEqual(1);
+    expect(docs.rows.some((r) => r.Titre === "NOUVEAU PPD UPLOAD")).toBe(true);
+
+    const stats = await h.app.inject({ method: "GET", url: "/api/stats" });
+    expect((stats.json() as { documents: number }).documents).toBeGreaterThanOrEqual(5);
+
+    await h.app.close();
+    await h.db.close();
+  });
+
+  it("demo PPD_Template.xlsx (sparse official) yields applyable full-mode rows", async () => {
+    const h = await harness();
+    dirs.push(h.dir);
+    const demo = await h.app.inject({
+      method: "POST",
+      url: "/api/imports/ppd/demo?file=PPD_Template.xlsx&rapide=false",
+    });
+    expect(demo.statusCode).toBe(200);
+    const body = demo.json() as { batchId: number; rowCount: number; warnings: string[] };
+    expect(body.rowCount).toBe(40);
+    const applied = await h.app.inject({ method: "POST", url: `/api/imports/${body.batchId}/apply` });
+    expect(applied.statusCode).toBe(200);
+    expect((applied.json() as { appliedDocuments: number }).appliedDocuments).toBe(40);
+    const row = await h.db.get<{ Titre: string }>(
+      "SELECT Titre FROM document WHERE GroupeLigne = 70 AND IndiceLigne = '1'",
+    );
+    expect(row?.Titre).toMatch(/PPD COMPLET DEMO/);
+    await h.app.close();
+    await h.db.close();
+  }, 60000);
+
+  it("returns the French parse error on a workbook without PPD headers (not Internal Server Error)", async () => {
+    const h = await harness();
+    dirs.push(h.dir);
+    const buf = writeAoaWorkbook([["Pas un PPD"], ["rien"]], "Cover");
+    const { payload, headers } = multipartPayload("not-ppd.xlsx", buf, { rapide: "false" });
+    const res = await h.app.inject({
+      method: "POST",
+      url: "/api/imports/ppd",
+      headers,
+      payload,
+    });
+    expect(res.statusCode).toBe(400);
+    const body = res.json() as { error: string };
+    expect(body.error).toMatch(/En-tête PPD/);
+    expect(body.error).not.toMatch(/Internal Server Error/);
     await h.app.close();
     await h.db.close();
   });

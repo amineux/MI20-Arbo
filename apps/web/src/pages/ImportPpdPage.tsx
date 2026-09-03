@@ -34,6 +34,7 @@ interface ImportSummary {
   errorCount: number;
   diffCount: number;
   newCount: number;
+  warnings?: string[];
 }
 
 interface ApplyResult {
@@ -66,6 +67,8 @@ export function ImportPpdPage() {
   const [applied, setApplied] = useState<ApplyResult | null>(null);
   const [autorunHint, setAutorunHint] = useState(false);
   const skipReload = useRef(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const appliedBatchId = useRef<number | null>(null);
 
   const load = (id: number) => {
     api
@@ -74,10 +77,11 @@ export function ImportPpdPage() {
         setDetail(d);
         if (String(d.batch.Status) === "applied") {
           setApplied({
-            appliedDocuments: Number(d.batch.appliedDocuments ?? 0),
-            appliedJalons: Number(d.batch.appliedJalons ?? 0),
+            appliedDocuments: Number(d.batch.appliedDocuments ?? d.batch.AppliedDocuments ?? 0),
+            appliedJalons: Number(d.batch.appliedJalons ?? d.batch.AppliedJalons ?? 0),
             alreadyApplied: true,
           });
+          appliedBatchId.current = Number(d.batch.Id);
         }
         if (d.nouveaux.length && !d.compare.length) setTab("new");
       })
@@ -89,6 +93,7 @@ export function ImportPpdPage() {
     try {
       const r = await api.post<ApplyResult>(`/api/imports/${id}/apply`);
       setApplied(r);
+      appliedBatchId.current = id;
       setErrorMsg(null);
       toast(
         "success",
@@ -107,21 +112,41 @@ export function ImportPpdPage() {
     }
   };
 
+  const showStaged = async (r: ImportSummary) => {
+    setResult(r);
+    const warn = r.warnings?.filter(Boolean) ?? [];
+    if (r.rowCount === 0) {
+      toast("warning", "PPD sans lignes de données", warn[0] || "Le classeur n'a pas de livrables sous Num Liv. / Nr Livrable.");
+    } else {
+      toast(
+        "success",
+        "PPD chargé",
+        `${r.rowCount} lignes · ${r.diffCount} écarts · ${r.newCount} nouveaux · ${r.errorCount} erreur(s) LDD`,
+      );
+    }
+    skipReload.current = true;
+    nav(`/import-ppd/${r.batchId}`, { replace: true, state: null });
+    const d = await api.get<BatchInfo>(`/api/imports/${r.batchId}`);
+    setDetail(d);
+    if (d.nouveaux.length) setTab("new");
+    else if (d.errors.length && !d.compare.length) setTab("err");
+    else setTab("compare");
+  };
+
   const runDemo = async (file?: string, thenApply = false) => {
     setBusy(true);
     setErrorMsg(null);
     setApplied(null);
+    appliedBatchId.current = null;
+    setDetail(null);
     try {
-      const q = new URLSearchParams({ rapide: String(rapide || file === "Import_Rapide_Jalons.xlsx") });
+      const isFullTemplate = file === "PPD_Template.xlsx";
+      const q = new URLSearchParams({
+        rapide: String(isFullTemplate ? false : rapide || file === "Import_Rapide_Jalons.xlsx"),
+      });
       if (file) q.set("file", file);
       const r = await api.post<ImportSummary>(`/api/imports/ppd/demo?${q}`);
-      setResult(r);
-      toast("success", "PPD chargé", `${r.rowCount} lignes · ${r.diffCount} écarts · ${r.newCount} nouveaux · ${r.errorCount} erreur(s) LDD`);
-      skipReload.current = true;
-      nav(`/import-ppd/${r.batchId}`, { replace: true, state: null });
-      const d = await api.get<BatchInfo>(`/api/imports/${r.batchId}`);
-      setDetail(d);
-      setTab(d.nouveaux.length ? "new" : "compare");
+      await showStaged(r);
       if (thenApply) {
         await applyBatch(r.batchId);
       }
@@ -132,6 +157,29 @@ export function ImportPpdPage() {
     } finally {
       setBusy(false);
       setAutorunHint(false);
+    }
+  };
+
+  const uploadWorkbook = async (file: File) => {
+    setBusy(true);
+    setErrorMsg(null);
+    setApplied(null);
+    appliedBatchId.current = null;
+    setDetail(null);
+    const fd = new FormData();
+    // Field before file so proxies/parsers never wait on a trailing part.
+    fd.append("rapide", String(rapide));
+    fd.append("file", file);
+    try {
+      const r = await api.post<ImportSummary>(`/api/imports/ppd?rapide=${rapide}`, fd);
+      await showStaged(r);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Erreur import";
+      setErrorMsg(msg);
+      toast("error", "Import PPD", msg);
+    } finally {
+      setBusy(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -156,8 +204,12 @@ export function ImportPpdPage() {
     if (batchId) load(Number(batchId));
   }, [batchId]);
 
-  const appliedDone = Boolean(applied);
-  const batchApplied = String(detail?.batch.Status ?? "") === "applied" || appliedDone;
+  const currentBatchId = Number(batchId ?? result?.batchId ?? detail?.batch.Id ?? 0);
+  const detailId = Number(detail?.batch.Id ?? 0);
+  const thisBatchViewed = detailId > 0 && currentBatchId > 0 && detailId === currentBatchId;
+  const batchApplied =
+    thisBatchViewed &&
+    (String(detail?.batch.Status ?? "") === "applied" || appliedBatchId.current === currentBatchId);
 
   return (
     <div>
@@ -177,30 +229,13 @@ export function ImportPpdPage() {
       ) : null}
       <div style={{ display: "flex", gap: 12, alignItems: "center", margin: "16px 0", flexWrap: "wrap" }}>
         <input
+          ref={fileInputRef}
           type="file"
           accept=".xlsx,.xls"
-          onChange={async (e) => {
+          onChange={(e) => {
             const file = e.target.files?.[0];
             if (!file) return;
-            setBusy(true);
-            setErrorMsg(null);
-            setApplied(null);
-            const fd = new FormData();
-            fd.append("file", file);
-            fd.append("rapide", String(rapide));
-            try {
-              const r = await api.post<ImportSummary>(`/api/imports/ppd?rapide=${rapide}`, fd);
-              setResult(r);
-              toast("success", "Fichier importé", `${r.rowCount} lignes`);
-              nav(`/import-ppd/${r.batchId}`);
-              load(r.batchId);
-            } catch (err) {
-              const msg = err instanceof Error ? err.message : "Erreur import";
-              setErrorMsg(msg);
-              toast("error", "Import PPD", msg);
-            } finally {
-              setBusy(false);
-            }
+            void uploadWorkbook(file);
           }}
         />
         <Checkbox checked={rapide} label="Import rapide (Nr Livrable)" onChange={(_, d) => setRapide(!!d.checked)} />
@@ -210,17 +245,29 @@ export function ImportPpdPage() {
         <Button disabled={busy} onClick={() => runDemo("Import_Rapide_Jalons.xlsx")}>
           Charger Import_Rapide_Jalons.xlsx
         </Button>
-        <Button disabled={busy} onClick={() => { setRapide(false); void runDemo("PPD_Template.xlsx"); }}>
+        <Button
+          disabled={busy}
+          onClick={() => {
+            setRapide(false);
+            void runDemo("PPD_Template.xlsx");
+          }}
+        >
           Charger PPD_Template.xlsx (mode complet)
         </Button>
         {busy ? <Spinner size="tiny" /> : null}
       </div>
       {result ? (
-        <MessageBar intent="success">
+        <MessageBar intent={result.rowCount === 0 ? "warning" : "success"}>
           <MessageBarBody>
             <MessageBarTitle>Lot {result.batchId} chargé</MessageBarTitle>
             {result.rowCount} lignes, {result.diffCount} écarts, {result.newCount} nouveaux, {result.errorCount}{" "}
-            erreur(s) de lookup LDD. Vérifiez les onglets puis cliquez <b>Appliquer les modifications</b>.
+            erreur(s) de lookup LDD.
+            {result.rowCount === 0
+              ? " Aucune ligne à appliquer — utilisez un classeur rempli (pas le calque vide)."
+              : " Vérifiez les onglets puis cliquez Appliquer les modifications validées."}
+            {result.warnings?.length ? (
+              <div style={{ marginTop: 6 }}>{result.warnings.filter(Boolean).join(" ")}</div>
+            ) : null}
           </MessageBarBody>
         </MessageBar>
       ) : null}

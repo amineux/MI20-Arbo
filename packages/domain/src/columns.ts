@@ -47,7 +47,17 @@ export function normalizeHeader(title: string): string {
 const HEADER_ALIASES: Record<string, string> = {
   "n° de ligne": "num liv.",
   "numero de ligne": "num liv.",
+  "num liv": "num liv.",
+  "num. liv.": "num liv.",
+  "n° liv.": "num liv.",
+  "n°liv.": "num liv.",
+  "n liv.": "num liv.",
+  "n liv": "num liv.",
   "nr livrable": "num liv.",
+  "nr. livrable": "num liv.",
+  "n° livrable": "num liv.",
+  "numero livrable": "num liv.",
+  "n° de livrable": "num liv.",
   "mod ele cao": "modele cao",
 };
 

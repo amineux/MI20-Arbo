@@ -139,6 +139,7 @@ export function parseFaSheet(sheet: unknown[][]): ParseFaResult {
       errors: [],
     };
     const ligneRaw = dataRow[col.ligne];
+    if (cellToText(ligneRaw) === "") continue;
     const parsed = parseLigne(ligneRaw);
     if (!parsed) {
       staged.errors.push(

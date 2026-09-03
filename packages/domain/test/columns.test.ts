@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { parseImportColumnsCsv, indexColumnsByHeader, normalizeHeader } from "../src/columns.js";
+import { parseImportColumnsCsv, indexColumnsByHeader, normalizeHeader, canonicalHeader } from "../src/columns.js";
 import { DEFAULT_PPD_CONFIG } from "../src/types.js";
 
 const csvPath = join(dirname(fileURLToPath(import.meta.url)), "../data/import_columns.csv");
@@ -58,6 +58,13 @@ describe("import_columns mapping", () => {
     const map = indexColumnsByHeader(columns);
     expect(map.get(normalizeHeader("num liv."))?.nature).toBe("LIGNE");
     expect(map.get(normalizeHeader("Fournisseur"))?.documentField).toBe("IdFournisseur");
+  });
+
+  it("aliases Num Liv without period and Nr Livrable onto the LIGNE column", () => {
+    const map = indexColumnsByHeader(columns);
+    expect(map.get(canonicalHeader("Num Liv"))?.nature).toBe("LIGNE");
+    expect(map.get(canonicalHeader("N° Liv."))?.nature).toBe("LIGNE");
+    expect(map.get(canonicalHeader("Nr Livrable"))?.nature).toBe("LIGNE");
   });
 
   it("matches config.ini first/last column titles", () => {

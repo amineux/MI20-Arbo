@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { loadBundledImportColumns } from "../src/columns-fs.js";
 import { DEFAULT_PPD_CONFIG } from "../src/types.js";
 import { parsePpdSheet } from "../src/parse-workbook.js";
-import { parseWorkbookToAoa, fillOfficialPpdTemplate } from "../src/xlsx-io.js";
+import { parseWorkbookToAoa, fillOfficialPpdTemplate, writeMultiSheetWorkbook } from "../src/xlsx-io.js";
 import {
   DEFAULT_RAPIDE_FIXTURE,
   JALONS_RAPIDE_FIXTURE,
@@ -75,5 +75,24 @@ describe("official Base Arbo fixtures", () => {
       (r as unknown[]).some((c) => String(c).includes("ligne") || String(c).includes("Num Liv")),
     );
     expect(header).toBeTruthy();
+  });
+
+  it("reads a new full PPD from a later sheet when the first sheet is a cover (no Num Liv.)", () => {
+    const buf = writeMultiSheetWorkbook([
+      { name: "Couverture", aoa: [["PPD MI20"], ["Confidentiel"], ["ne pas importer"]] },
+      {
+        name: "Feuil1",
+        aoa: [
+          ["Num Liv.", "Titre du document", "Langue"],
+          ["71 / 8", "NOUVEAU FICHIER UI", "FR"],
+          ["71 / 9", "DEUXIEME LIGNE", "EN"],
+        ],
+      },
+    ]);
+    const aoa = parseWorkbookToAoa(buf);
+    const parsed = parsePpdSheet(aoa, columns, emptyLookups, DEFAULT_PPD_CONFIG);
+    expect(parsed.mode).toBe("full");
+    expect(parsed.rows).toHaveLength(2);
+    expect(parsed.rows[0]).toMatchObject({ groupeLigne: 71, indiceLigne: "8" });
   });
 });

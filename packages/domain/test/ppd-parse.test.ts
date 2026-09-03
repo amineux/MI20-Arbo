@@ -95,4 +95,26 @@ describe("PPD sheet parse + jalon unpivot", () => {
     expect(parsed.rows[0]?.fields.Revision).toBe("B");
     expect(parsed.rows[0]?.fields.IdFournisseur).toBeUndefined();
   });
+
+  it("accepts Num Liv without period as full-mode header", () => {
+    const sheet: unknown[][] = [
+      ["Num Liv", "Titre du document", "Langue"],
+      ["73 / 4", "SANS POINT", "FR"],
+    ];
+    const parsed = parsePpdSheet(sheet, columns, sampleLookups, DEFAULT_PPD_CONFIG);
+    expect(parsed.mode).toBe("full");
+    expect(parsed.rows).toHaveLength(1);
+    expect(parsed.rows[0]).toMatchObject({ groupeLigne: 73, indiceLigne: "4" });
+  });
+
+  it("skips rows whose Num Liv. cell is empty (title / filter lines)", () => {
+    const sheet: unknown[][] = [
+      ["Num Liv.", "Titre du document", "Langue"],
+      ["", "Ligne de titre", ""],
+      ["74 / 1", "VRAI LIVRABLE", "FR"],
+    ];
+    const parsed = parsePpdSheet(sheet, columns, sampleLookups, DEFAULT_PPD_CONFIG);
+    expect(parsed.rows).toHaveLength(1);
+    expect(parsed.rows[0]?.indiceLigne).toBe("1");
+  });
 });

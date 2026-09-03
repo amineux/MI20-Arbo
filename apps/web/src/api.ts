@@ -13,8 +13,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (!res.ok) {
     let detail = res.statusText;
     try {
-      const body = (await res.json()) as { error?: string };
-      if (body.error) detail = body.error;
+      const body = (await res.json()) as { error?: string; message?: string };
+      if (body.message && (!body.error || body.error === "Internal Server Error")) {
+        detail = body.message;
+      } else if (body.error) {
+        detail = body.error;
+      } else if (body.message) {
+        detail = body.message;
+      }
     } catch {
       /* ignore */
     }

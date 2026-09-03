@@ -19,7 +19,15 @@ export { parseImportColumnsCsv, normalizeHeader, indexColumnsByHeader, canonical
 export { unpivotJalons, matchJalonDef, jalonsToRawFields, cellToDateIso, jalonCodeFromHeader } from "./jalon.js";
 export { parsePpdSheet, detectHeaderRow } from "./parse-workbook.js";
 export { computeDifferences, docKey } from "./compare.js";
-export { parseWorkbookToAoa, buildPpdExportWorkbook, excelColumnLetter, fillOfficialPpdTemplate, writeAoaWorkbook } from "./xlsx-io.js";
+export {
+  parseWorkbookToAoa,
+  buildPpdExportWorkbook,
+  excelColumnLetter,
+  fillOfficialPpdTemplate,
+  writeAoaWorkbook,
+  writeMultiSheetWorkbook,
+  buildSyntheticFullPpdAoa,
+} from "./xlsx-io.js";
 export {
   parseFaSheet,
   detectFaHeaderRow,

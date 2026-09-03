@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
 import fastifyStatic from "@fastify/static";
-import Fastify, { type FastifyInstance } from "fastify";
+import Fastify, { type FastifyInstance, type FastifyRequest } from "fastify";
 import archiver from "archiver";
 import {
   buildPpdExportWorkbook,
@@ -14,7 +14,11 @@ import {
   fillOfficialPpdTemplate,
   JALONS_RAPIDE_FIXTURE,
   loadBundledImportColumns,
+  parsePpdSheet,
+  parseWorkbookToAoa,
   PPD_TEMPLATE_FILE,
+  writeAoaWorkbook,
+  buildSyntheticFullPpdAoa,
 } from "@mi20/domain";
 import { authHook, entraClientConfig } from "./auth.js";
 import { applyImportBatch, importPpdBuffer, listJalons, loadDocumentSnapshots, ppdConfigFromDb } from "./import-service.js";
@@ -43,6 +47,13 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     credentials: true,
   });
   await app.register(multipart, { limits: { fileSize: 80 * 1024 * 1024 } });
+  app.setErrorHandler((error, request, reply) => {
+    request.log.error(error);
+    const status = Number((error as { statusCode?: number }).statusCode) || 500;
+    const message = error instanceof Error ? error.message : String(error);
+    const safe = status >= 400 && status < 600 ? status : 500;
+    reply.code(safe).send({ error: message, message });
+  });
   app.addHook("preHandler", authHook);
 
   const webDist = process.env.WEB_DIST ?? path.resolve(here, "../../web/dist");
@@ -115,11 +126,11 @@ function registerDocumentRoutes(app: FastifyInstance, deps: AppDeps): void {
     const where: string[] = ["1=1"];
     const params: unknown[] = [];
     if (q.search) {
+      const like = `%${q.search.trim().toLowerCase()}%`;
       where.push(
-        "(Titre LIKE ? OR RefExt LIKE ? OR CAST(GroupeLigne AS TEXT) LIKE ? OR IndiceLigne LIKE ? OR Livrable LIKE ?)",
+        `(LOWER(COALESCE(Titre, '')) LIKE ? OR LOWER(COALESCE(RefExt, '')) LIKE ? OR CAST(GroupeLigne AS TEXT) LIKE ? OR LOWER(COALESCE(IndiceLigne, '')) LIKE ? OR LOWER(COALESCE(Livrable, '')) LIKE ? OR LOWER(CAST(GroupeLigne AS TEXT) || ' / ' || COALESCE(IndiceLigne, '')) LIKE ?)`,
       );
-      const like = `%${q.search}%`;
-      params.push(like, like, like, like, like);
+      params.push(like, like, like, like, like, like);
     }
     if (q.groupeLigne) {
       where.push("GroupeLigne = ?");
@@ -282,10 +293,15 @@ function registerImportRoutes(app: FastifyInstance, deps: AppDeps): void {
   app.post("/api/imports/ppd/demo", async (req) => {
     const q = req.query as { rapide?: string; file?: string };
     const allowed = new Set([DEFAULT_RAPIDE_FIXTURE, JALONS_RAPIDE_FIXTURE, PPD_TEMPLATE_FILE]);
-    const fileName = allowed.has(q.file ?? "") ? (q.file as string) : DEFAULT_RAPIDE_FIXTURE;
+    let fileName = allowed.has(q.file ?? "") ? (q.file as string) : DEFAULT_RAPIDE_FIXTURE;
     const rapide = q.rapide !== "false" && fileName !== PPD_TEMPLATE_FILE;
-    const buffer = readOfficialFixture(fileName);
-    return importPpdBuffer({
+    let buffer = readOfficialFixture(fileName);
+    const warnings: string[] = [];
+    if (fileName === PPD_TEMPLATE_FILE) {
+      buffer = ensureFilledFullPpd(buffer, warnings);
+      if (warnings.length) fileName = "PPD_Template_exemple.xlsx";
+    }
+    const result = await importPpdBuffer({
       db: deps.db,
       storage: deps.storage,
       buffer,
@@ -293,26 +309,30 @@ function registerImportRoutes(app: FastifyInstance, deps: AppDeps): void {
       user: req.user?.name ?? "demo.user",
       rapide,
     });
+    return { ...result, warnings: [...warnings, ...result.warnings] };
   });
 
   app.post("/api/imports/ppd", async (req, reply) => {
-    const file = await req.file();
-    if (!file) {
-      reply.code(400).send({ error: "Fichier Excel PPD manquant" });
-      return;
+    try {
+      const uploaded = await readExcelUpload(req);
+      if (!uploaded) {
+        reply.code(400).send({ error: "Fichier Excel PPD manquant" });
+        return;
+      }
+      const rapide =
+        uploaded.fields.rapide === "true" || (req.query as { rapide?: string }).rapide === "true";
+      return await importPpdBuffer({
+        db: deps.db,
+        storage: deps.storage,
+        buffer: uploaded.buffer,
+        fileName: uploaded.fileName,
+        user: req.user?.name ?? "demo.user",
+        rapide,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      reply.code(400).send({ error: message, message });
     }
-    const buffer = await file.toBuffer();
-    const rapide =
-      (file.fields?.rapide as { value?: string } | undefined)?.value === "true" ||
-      (req.query as { rapide?: string }).rapide === "true";
-    return importPpdBuffer({
-      db: deps.db,
-      storage: deps.storage,
-      buffer,
-      fileName: file.filename,
-      user: req.user?.name ?? "demo.user",
-      rapide,
-    });
   });
 
   app.post("/api/imports/fa/demo", async (req) => {
@@ -327,19 +347,23 @@ function registerImportRoutes(app: FastifyInstance, deps: AppDeps): void {
   });
 
   app.post("/api/imports/fa", async (req, reply) => {
-    const file = await req.file();
-    if (!file) {
-      reply.code(400).send({ error: "Fichier Excel fiches d'avis manquant" });
-      return;
+    try {
+      const uploaded = await readExcelUpload(req);
+      if (!uploaded) {
+        reply.code(400).send({ error: "Fichier Excel fiches d'avis manquant" });
+        return;
+      }
+      return await importFaBuffer({
+        db: deps.db,
+        storage: deps.storage,
+        buffer: uploaded.buffer,
+        fileName: uploaded.fileName,
+        user: req.user?.name ?? "demo.user",
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      reply.code(400).send({ error: message, message });
     }
-    const buffer = await file.toBuffer();
-    return importFaBuffer({
-      db: deps.db,
-      storage: deps.storage,
-      buffer,
-      fileName: file.filename,
-      user: req.user?.name ?? "demo.user",
-    });
   });
 
   app.get("/api/imports", async () => {
@@ -675,4 +699,40 @@ function slug(value: string): string {
     .replace(/[^A-Za-z0-9]+/g, "_")
     .replace(/^_|_$/g, "")
     .toUpperCase();
+}
+
+/** Drain every multipart part so a field after the file cannot hang the request. */
+async function readExcelUpload(
+  req: FastifyRequest,
+): Promise<{ buffer: Buffer; fileName: string; fields: Record<string, string> } | null> {
+  const fields: Record<string, string> = {};
+  let buffer: Buffer | undefined;
+  let fileName = "upload.xlsx";
+  const parts = req.parts();
+  for await (const part of parts) {
+    if (part.type === "file") {
+      buffer = await part.toBuffer();
+      if (part.filename) fileName = part.filename;
+    } else {
+      fields[part.fieldname] = String((part as { value?: unknown }).value ?? "");
+    }
+  }
+  if (!buffer?.length) return null;
+  return { buffer, fileName, fields };
+}
+
+/**
+ * Official PPD_Template.xlsx is a sparse header shell (0 livrables). The demo
+ * button still needs applyable rows with the same headers.
+ */
+function ensureFilledFullPpd(template: Buffer, warnings: string[]): Buffer {
+  const columns = loadBundledImportColumns();
+  const aoa = parseWorkbookToAoa(template);
+  const parsed = parsePpdSheet(aoa, columns, {}, { ...DEFAULT_PPD_CONFIG, rapide: false });
+  if (parsed.rows.length > 0) return template;
+  warnings.push(
+    "PPD_Template.xlsx n'a pas de lignes de données — exemple complet généré avec les mêmes en-têtes (Num Liv.).",
+  );
+  const filled = buildSyntheticFullPpdAoa(parsed.headers.map(String), 40);
+  return writeAoaWorkbook(filled, "PPD");
 }

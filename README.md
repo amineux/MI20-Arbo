@@ -26,7 +26,7 @@ Open **http://127.0.0.1:5173** (Vite proxies `/api` to the API). SQLite file is 
    - *Charger Import_Rapide_exemple.xlsx* (mode rapide, `Nr Livrable`) → onglets Comparaison / Nouveaux / Erreurs LDD → **Appliquer les modifications validées**.
    - Rows with bad LDD (`UCase(Trim(Nom))`, e.g. unknown fournisseur) are listed and **skipped** on apply; they do not crash the lot.
    - *Charger Import_Rapide_Jalons.xlsx* for jalons-only.
-   - *Charger PPD_Template.xlsx (mode complet)* or upload a full PPD (header `Num Liv.`). The official template may have few/no data rows; a larger workbook with the same headers applies the same pipeline.
+   - *Charger PPD_Template.xlsx (mode complet)* or **upload** a full PPD (header `Num Liv.`). The official template is a header shell (0 livrables); the demo button fills example rows with those headers. A larger/new workbook with the same headers is parsed even if `Num Liv.` is not on the first sheet. After apply, Accueil counters and Documents search (including `36 / 9351.3`) read the database.
 4. **Bordereaux** — choose leader **CAF** → **Créer le bordereau** → search a document → **Rattacher** → **Exporter et télécharger le ZIP**. Pack layout: `EXPORT_BX/MI20_BORD_<code>/` (manifest + `MI20_BORD_TEMPLATE_M5_V12.xls`). Download generates the pack if needed (one-click).
 5. **Retours RATP** → onglet **Import Excel FA** → *Charger Import_Retours_RATP_exemple.xlsx* (header `NumLivrable`) → **Appliquer les fiches d'avis**. That updates `fiche_avis`, `envoi` (Réponse / fichier FA) and `revision`. Unknown livrables stay in the error list (not a silent no-op). Manual saisie on the other tab writes the same tables.
 

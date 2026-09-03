@@ -231,11 +231,20 @@ function registerLookupRoutes(app: FastifyInstance, deps: AppDeps): void {
       reply.code(400).send({ error: "Nom obligatoire" });
       return;
     }
+    const nom = body.nom.trim();
+    const dup = await deps.db.get<{ id: number }>(
+      "SELECT id FROM lookup_row WHERE table_key = ? AND UPPER(TRIM(nom)) = UPPER(TRIM(?))",
+      [table, nom],
+    );
+    if (dup) {
+      reply.code(409).send({ error: "Nom déjà présent (UCase Trim)", id: dup.id });
+      return;
+    }
     const info = await deps.db.run(
       "INSERT INTO lookup_row (table_key, nom, id_perimetre, id_domaine, id_metier) VALUES (?, ?, ?, ?, ?)",
-      [table, body.nom.trim(), body.idPerimetre ?? null, body.idDomaine ?? null, body.idMetier ?? null],
+      [table, nom, body.idPerimetre ?? null, body.idDomaine ?? null, body.idMetier ?? null],
     );
-    return { id: info.lastInsertId, nom: body.nom.trim() };
+    return { id: info.lastInsertId, nom };
   });
 
   app.put("/api/lookups/:table/:id", async (req) => {

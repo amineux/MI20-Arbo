@@ -183,6 +183,25 @@ describe("PPD import smoke (official fixtures + apply persist)", () => {
     await h.app.close();
     await h.db.close();
   });
+
+  it("rejects lookup names that differ only by case (UCase Trim / NOCASE)", async () => {
+    const h = await harness();
+    dirs.push(h.dir);
+    const again = await h.app.inject({
+      method: "POST",
+      url: "/api/lookups/fournisseur",
+      payload: { nom: "caf" },
+    });
+    expect(again.statusCode).toBe(409);
+    const mixed = await h.app.inject({
+      method: "POST",
+      url: "/api/lookups/fournisseur",
+      payload: { nom: "Caf" },
+    });
+    expect(mixed.statusCode).toBe(409);
+    await h.app.close();
+    await h.db.close();
+  });
 });
 
 describe("Bordereau create + EXPORT_BX ZIP", () => {

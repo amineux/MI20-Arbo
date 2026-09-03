@@ -290,6 +290,9 @@ CREATE INDEX IF NOT EXISTS ix_import_cmp_batch ON import_compare (BatchId);
 CREATE INDEX IF NOT EXISTS ix_fa_envoi ON fiche_avis (IdEnvoi);
 CREATE INDEX IF NOT EXISTS ix_fa_document ON fiche_avis (IdDocument);
 CREATE INDEX IF NOT EXISTS ix_lookup_nom ON lookup_row (table_key, nom);
+-- Access LDD uniqueness is UCase(Trim(Nom)). SQLite table UNIQUE uses COLLATE NOCASE;
+-- Postgres strips that collation, so this expression index restores the same rule.
+CREATE UNIQUE INDEX IF NOT EXISTS ux_lookup_row_nom_ci ON lookup_row (table_key, UPPER(TRIM(nom)));
 CREATE INDEX IF NOT EXISTS ix_document_fournisseur ON document (IdFournisseur);
 CREATE INDEX IF NOT EXISTS ix_document_leader ON document (IdLeader);
 

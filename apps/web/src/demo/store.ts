@@ -95,6 +95,7 @@ export interface DemoState {
   importBatches: Array<Record<string, unknown>>;
   importRaw: Array<Record<string, unknown>>;
   importCompare: Array<Record<string, unknown>>;
+  importFaRaw: Array<Record<string, unknown>>;
   bordereaux: Array<Record<string, unknown>>;
   envois: Array<Record<string, unknown>>;
   revisions: Array<Record<string, unknown>>;
@@ -102,7 +103,7 @@ export interface DemoState {
   files: Record<string, { type: string; b64: string }>;
 }
 
-const STORAGE_KEY = "mi20-arbo-static-demo-v3";
+const STORAGE_KEY = "mi20-arbo-static-demo-v4";
 
 function alloc(state: DemoState): number {
   const id = state.nextId;
@@ -131,6 +132,7 @@ export function createSeedState(): DemoState {
     importBatches: [],
     importRaw: [],
     importCompare: [],
+    importFaRaw: [],
     bordereaux: [],
     envois: [],
     revisions: [],
@@ -265,14 +267,42 @@ export function createSeedState(): DemoState {
   state.ratpReturns.push({
     Id: alloc(state),
     IdDocument: d1.Id,
+    IdEnvoi: null as number | null,
     GroupeLigne: d1.GroupeLigne,
     IndiceLigne: d1.IndiceLigne,
     Titre: d1.Titre,
     Avis: "FA",
+    ReponseFicheAvis: "FA",
+    Statut: "FA",
+    FichierFicheAvis: "FA_SEED_36_9351.3.pdf",
+    NomFichier: "FA_SEED_36_9351.3.pdf",
     Commentaire: "Fiche avis de démonstration (Form_SaisieRetoursRATP) — donnée synthétique.",
     NomUtilisateur: "seed",
     CreatedAt: new Date().toISOString(),
   });
+  const bxId = alloc(state);
+  state.bordereaux.push({
+    Id: bxId,
+    IdLeader: leader,
+    Numero: 1,
+    DateEnvoi: new Date().toISOString().slice(0, 10),
+    NomComplet: "MI20_BORD_CAF_0001",
+    EstActif: 1,
+    Commentaire: "Bordereau de démonstration (seed)",
+    ExportPath: null,
+  });
+  const envoiId = alloc(state);
+  state.envois.push({
+    Id: envoiId,
+    IdBordereau: bxId,
+    IdDocument: d1.Id,
+    IdRevision: state.revisions[0]?.Id ?? null,
+    Titre: d1.Titre,
+    Revision: d1.Revision,
+    NomUtilisateur: "seed",
+  });
+  const fa = state.ratpReturns[0];
+  if (fa) fa.IdEnvoi = envoiId;
   return state;
 }
 
@@ -284,6 +314,7 @@ export function getState(): DemoState {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       memory = JSON.parse(raw) as DemoState;
+      memory.importFaRaw ??= [];
       return memory;
     }
   } catch {

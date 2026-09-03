@@ -267,3 +267,84 @@ CREATE TABLE IF NOT EXISTS import_programmation_jalon (
   IndiceLigne TEXT
 );
 `;
+
+export const SQLITE_PRAGMAS = [
+  "foreign_keys = ON",
+  "journal_mode = WAL",
+  "synchronous = NORMAL",
+  "busy_timeout = 5000",
+  "cache_size = -80000",
+];
+
+export const SCHEMA_EXTRAS_SQL = `
+CREATE INDEX IF NOT EXISTS ix_pj_document ON programmation_jalon (IdDocument);
+CREATE INDEX IF NOT EXISTS ix_pj_jalon ON programmation_jalon (IdJalon);
+CREATE INDEX IF NOT EXISTS ix_envoi_bordereau ON envoi (IdBordereau);
+CREATE INDEX IF NOT EXISTS ix_envoi_document ON envoi (IdDocument);
+CREATE INDEX IF NOT EXISTS ix_envoi_revision ON envoi (IdRevision);
+CREATE INDEX IF NOT EXISTS ix_revision_pj ON revision (IdProgrammationJalon);
+CREATE INDEX IF NOT EXISTS ix_histo_document ON doc_histo (IdDocument);
+CREATE INDEX IF NOT EXISTS ix_histo_ligne ON doc_histo (GroupeLigne, IndiceLigne);
+CREATE INDEX IF NOT EXISTS ix_import_raw_batch ON import_raw (BatchId);
+CREATE INDEX IF NOT EXISTS ix_import_cmp_batch ON import_compare (BatchId);
+CREATE INDEX IF NOT EXISTS ix_fa_envoi ON fiche_avis (IdEnvoi);
+CREATE INDEX IF NOT EXISTS ix_fa_document ON fiche_avis (IdDocument);
+CREATE INDEX IF NOT EXISTS ix_lookup_nom ON lookup_row (table_key, nom);
+CREATE INDEX IF NOT EXISTS ix_document_fournisseur ON document (IdFournisseur);
+CREATE INDEX IF NOT EXISTS ix_document_leader ON document (IdLeader);
+
+CREATE TABLE IF NOT EXISTS import_fa_raw (
+  Id INTEGER PRIMARY KEY AUTOINCREMENT,
+  BatchId INTEGER NOT NULL REFERENCES import_batch(Id) ON DELETE CASCADE,
+  ligneEXCEL INTEGER,
+  GroupeLigne INTEGER,
+  IndiceLigne TEXT,
+  Revision TEXT,
+  Jalon TEXT,
+  Version TEXT,
+  EstPrevisionnel INTEGER NOT NULL DEFAULT 0,
+  DatePrevisionnelle TEXT,
+  ReponseFicheAvis TEXT,
+  FichierFicheAvis TEXT,
+  DateReceptionRATP TEXT,
+  DatePrevReceptionFA TEXT,
+  NumLotRATP TEXT,
+  CommentairesRATP TEXT,
+  CommentairesSup TEXT,
+  RefuseAuChargement TEXT,
+  NomUtilisateur TEXT,
+  erreur TEXT,
+  payload_json TEXT,
+  IdDocument INTEGER,
+  IdEnvoi INTEGER,
+  IdRevision INTEGER
+);
+CREATE INDEX IF NOT EXISTS ix_import_fa_batch ON import_fa_raw (BatchId);
+CREATE INDEX IF NOT EXISTS ix_import_fa_ligne ON import_fa_raw (GroupeLigne, IndiceLigne);
+`;
+
+export function extraColumns(): Array<{ table: string; name: string; ddl: string }> {
+  return [
+    { table: "import_batch", name: "AppliedDocuments", ddl: "AppliedDocuments INTEGER NOT NULL DEFAULT 0" },
+    { table: "import_batch", name: "AppliedJalons", ddl: "AppliedJalons INTEGER NOT NULL DEFAULT 0" },
+    { table: "import_batch", name: "AppliedFiches", ddl: "AppliedFiches INTEGER NOT NULL DEFAULT 0" },
+    { table: "fiche_avis", name: "IdDocument", ddl: "IdDocument INTEGER" },
+    { table: "fiche_avis", name: "IdRevision", ddl: "IdRevision INTEGER" },
+    { table: "fiche_avis", name: "ReponseFicheAvis", ddl: "ReponseFicheAvis TEXT" },
+    { table: "fiche_avis", name: "DateReceptionRATP", ddl: "DateReceptionRATP TEXT" },
+    { table: "fiche_avis", name: "NumLotRATP", ddl: "NumLotRATP TEXT" },
+    { table: "fiche_avis", name: "CommentairesRATP", ddl: "CommentairesRATP TEXT" },
+    { table: "fiche_avis", name: "CommentairesSup", ddl: "CommentairesSup TEXT" },
+    { table: "fiche_avis", name: "RefuseAuChargement", ddl: "RefuseAuChargement TEXT" },
+    { table: "fiche_avis", name: "NomUtilisateur", ddl: "NomUtilisateur TEXT" },
+    { table: "fiche_avis", name: "GroupeLigne", ddl: "GroupeLigne INTEGER" },
+    { table: "fiche_avis", name: "IndiceLigne", ddl: "IndiceLigne TEXT" },
+    { table: "fiche_avis", name: "Revision", ddl: "Revision TEXT" },
+    { table: "fiche_avis", name: "Jalon", ddl: "Jalon TEXT" },
+    { table: "fiche_avis", name: "Version", ddl: "Version TEXT" },
+    { table: "fiche_avis", name: "FichierFicheAvis", ddl: "FichierFicheAvis TEXT" },
+    { table: "revision", name: "IdDocument", ddl: "IdDocument INTEGER" },
+    { table: "revision", name: "Commentaire", ddl: "Commentaire TEXT" },
+    { table: "revision", name: "CreatedAt", ddl: "CreatedAt TEXT" },
+  ];
+}

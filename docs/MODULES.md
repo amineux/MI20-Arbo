@@ -13,8 +13,8 @@ Source: `docs/handoff/TEKKY_BASE_ARBO_HANDOFF.md`. Do not add modules that are n
 | DoExportPPD / Form_EXPORT (PPD) | `/export-ppd` | MVP |
 | Form_CREATE_BX / Form_MGT_BX | `/bordereaux`, `/bordereaux/:id` | MVP |
 | Lookups (fournisseur, domaineChargeur, metier, PIC, …) | `/lookups` | MVP |
-| Form_CREATE_REV | `/revisions` | Stub |
-| Form_SaisieRetoursRATP / fiche avis | `/retours-ratp` | Stub |
+| Form_CREATE_REV | `/revisions` | MVP (persisté) |
+| Form_SaisieRetoursRATP / ImportRetoursRATP / fiche avis | `/retours-ratp` | MVP (saisie + import Excel NumLivrable) |
 | export_KPI1 / ExportBilanEnvois / DoctsAutorisation | `/kpi` | Stub |
 | Form_REPORT / doc_histo | `/rapports` | Stub (histo déjà écrit à l'import/édition) |
 | Form_VerrouillageBase | `/verrouillage` + bannière globale | Route + bannière (toggle démo) |

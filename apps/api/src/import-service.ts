@@ -1,4 +1,3 @@
-import type Database from "better-sqlite3";
 import {
   computeDifferences,
   DEFAULT_PPD_CONFIG,
@@ -12,21 +11,22 @@ import {
 } from "@mi20/domain";
 import { loadLookupCatalog } from "./seed.js";
 import type { FileStorage } from "./storage.js";
+import type { SqlDatabase } from "./sql.js";
 
-export function ppdConfigFromDb(db: Database.Database, rapide: boolean): PpdConfig {
-  const get = (k: string, d: string) => {
-    const row = db.prepare("SELECT value FROM app_config WHERE key = ?").get(k) as { value: string } | undefined;
+export async function ppdConfigFromDb(db: SqlDatabase, rapide: boolean): Promise<PpdConfig> {
+  const get = async (k: string, d: string) => {
+    const row = await db.get<{ value: string }>("SELECT value FROM app_config WHERE key = ?", [k]);
     return row?.value ?? d;
   };
   return {
     ...DEFAULT_PPD_CONFIG,
-    firstColumnTitle: get("titrePremiereColonneXLS_PPD", DEFAULT_PPD_CONFIG.firstColumnTitle),
-    firstColumnTitleRapide: get(
+    firstColumnTitle: await get("titrePremiereColonneXLS_PPD", DEFAULT_PPD_CONFIG.firstColumnTitle),
+    firstColumnTitleRapide: await get(
       "titrePremiereColonneXLS_PPD_rapide",
       DEFAULT_PPD_CONFIG.firstColumnTitleRapide,
     ),
-    jalonCount: Number(get("nbJalonsPPD", "23")),
-    ratpMaskedColumns: get("exportRatpMask", "C,AA,AB,AC")
+    jalonCount: Number(await get("nbJalonsPPD", "23")),
+    ratpMaskedColumns: (await get("exportRatpMask", "C,AA,AB,AC"))
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean),
@@ -34,22 +34,18 @@ export function ppdConfigFromDb(db: Database.Database, rapide: boolean): PpdConf
   };
 }
 
-export function listJalons(db: Database.Database) {
-  return db.prepare("SELECT Id as id, Nom as nom, Code as code FROM jalon ORDER BY Id").all() as Array<{
-    id: number;
-    nom: string;
-    code: string;
-  }>;
+export async function listJalons(db: SqlDatabase) {
+  return db.all<{ id: number; nom: string; code: string }>(
+    "SELECT Id as id, Nom as nom, Code as code FROM jalon ORDER BY Id",
+  );
 }
 
-export function loadDocumentSnapshots(db: Database.Database): DocumentSnapshot[] {
-  const docs = db.prepare("SELECT * FROM document").all() as Array<Record<string, unknown>>;
-  const jalons = db
-    .prepare(
-      `SELECT pj.*, j.Code as jalonCode, j.Nom as jalonNom
-       FROM programmation_jalon pj JOIN jalon j ON j.Id = pj.IdJalon`,
-    )
-    .all() as Array<Record<string, unknown>>;
+export async function loadDocumentSnapshots(db: SqlDatabase): Promise<DocumentSnapshot[]> {
+  const docs = await db.all<Record<string, unknown>>("SELECT * FROM document");
+  const jalons = await db.all<Record<string, unknown>>(
+    `SELECT pj.*, j.Code as jalonCode, j.Nom as jalonNom
+     FROM programmation_jalon pj JOIN jalon j ON j.Id = pj.IdJalon`,
+  );
   const byDoc = new Map<number, typeof jalons>();
   for (const j of jalons) {
     const id = Number(j.IdDocument);
@@ -75,20 +71,27 @@ export function loadDocumentSnapshots(db: Database.Database): DocumentSnapshot[]
 }
 
 export async function importPpdBuffer(args: {
-  db: Database.Database;
+  db: SqlDatabase;
   storage: FileStorage;
   buffer: Buffer;
   fileName: string;
   user: string;
   rapide: boolean;
-}): Promise<{ batchId: number; rowCount: number; errorCount: number; newCount: number; diffCount: number; warnings: string[] }> {
+}): Promise<{
+  batchId: number;
+  rowCount: number;
+  errorCount: number;
+  newCount: number;
+  diffCount: number;
+  warnings: string[];
+}> {
   const columns = loadBundledImportColumns();
-  const config = ppdConfigFromDb(args.db, args.rapide);
+  const config = await ppdConfigFromDb(args.db, args.rapide);
   const aoa = parseWorkbookToAoa(args.buffer);
-  const lookups = loadLookupCatalog(args.db);
+  const lookups = await loadLookupCatalog(args.db);
   const parsed = parsePpdSheet(aoa, columns, lookups, config);
-  const existing = loadDocumentSnapshots(args.db);
-  const jalons = listJalons(args.db);
+  const existing = await loadDocumentSnapshots(args.db);
+  const jalons = await listJalons(args.db);
   const diffs = computeDifferences({
     staged: parsed.rows,
     existing,
@@ -101,85 +104,74 @@ export async function importPpdBuffer(args: {
   const errorCount = parsed.rows.filter((r) => r.errors.length).length;
   const newCount = parsed.rows.filter((r) => r.isNew).length;
 
-  const insertBatch = args.db.prepare(
-    `INSERT INTO import_batch (ImportUser, ImportTime, FileName, Mode, Status, Warning, RowCount, ErrorCount)
-     VALUES (?, ?, ?, ?, 'staged', ?, ?, ?)`,
-  );
-  const batchId = Number(
-    insertBatch.run(
-      args.user,
-      now,
-      args.fileName,
-      parsed.mode,
-      parsed.warnings.join("\n"),
-      parsed.rows.length,
-      errorCount,
-    ).lastInsertRowid,
-  );
-
-  const insertRaw = args.db.prepare(
-    `INSERT INTO import_raw (BatchId, ImportUser, ImportTime, GroupeLigne, IndiceLigne, ligneEXCEL, erreur, NouveauDocument, payload_json, jalon_json)
-     VALUES (@BatchId, @ImportUser, @ImportTime, @GroupeLigne, @IndiceLigne, @ligneEXCEL, @erreur, @NouveauDocument, @payload_json, @jalon_json)`,
-  );
-  const insertCmp = args.db.prepare(
-    `INSERT INTO import_compare (BatchId, GroupeLigne, IndiceLigne, titre_fr, fieldName, fieldLabel, oldValue, newValue, isImported, NouveauDocument, "table", oldValue_brut, newValue_brut, oldEstPrevisionnel, newEstPrevisionnel)
-     VALUES (@BatchId, @GroupeLigne, @IndiceLigne, @titre_fr, @fieldName, @fieldLabel, @oldValue, @newValue, 0, @NouveauDocument, @table, @oldValue_brut, @newValue_brut, @oldEstPrevisionnel, @newEstPrevisionnel)`,
-  );
-  const insertJalon = args.db.prepare(
-    `INSERT INTO import_programmation_jalon (BatchId, IdJalon, EstPrevisionnel, DatePrevisionnelle, Version, Code, Revision, GroupeLigne, IndiceLigne)
-     VALUES (@BatchId, @IdJalon, @EstPrevisionnel, @DatePrevisionnelle, @Version, @Code, @Revision, @GroupeLigne, @IndiceLigne)`,
-  );
-
-  const tx = args.db.transaction(() => {
+  const batchId = await args.db.transaction(async () => {
+    const inserted = await args.db.run(
+      `INSERT INTO import_batch (ImportUser, ImportTime, FileName, Mode, Status, Warning, RowCount, ErrorCount)
+       VALUES (?, ?, ?, ?, 'staged', ?, ?, ?)`,
+      [args.user, now, args.fileName, parsed.mode, parsed.warnings.join("\n"), parsed.rows.length, errorCount],
+    );
+    const id = inserted.lastInsertId;
     for (const row of parsed.rows) {
-      insertRaw.run({
-        BatchId: batchId,
-        ImportUser: args.user,
-        ImportTime: now,
-        GroupeLigne: row.groupeLigne,
-        IndiceLigne: row.indiceLigne,
-        ligneEXCEL: row.ligneExcel,
-        erreur: row.errors.join("\n") || null,
-        NouveauDocument: row.isNew ? 1 : 0,
-        payload_json: JSON.stringify({ ...row.fields, ...jalonsToRawFields(row.jalons), display: row.displayFields }),
-        jalon_json: JSON.stringify(row.jalons),
-      });
+      await args.db.run(
+        `INSERT INTO import_raw (BatchId, ImportUser, ImportTime, GroupeLigne, IndiceLigne, ligneEXCEL, erreur, NouveauDocument, payload_json, jalon_json)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          id,
+          args.user,
+          now,
+          row.groupeLigne,
+          row.indiceLigne,
+          row.ligneExcel,
+          row.errors.join("\n") || null,
+          row.isNew ? 1 : 0,
+          JSON.stringify({ ...row.fields, ...jalonsToRawFields(row.jalons), display: row.displayFields }),
+          JSON.stringify(row.jalons),
+        ],
+      );
       for (const slot of row.jalons) {
         const def = matchJalonDef(slot, jalons);
         if (!def) continue;
-        insertJalon.run({
-          BatchId: batchId,
-          IdJalon: def.id,
-          EstPrevisionnel: slot.estPrevisionnel ? 1 : 0,
-          DatePrevisionnelle: slot.date,
-          Version: slot.valeur,
-          Code: def.code,
-          Revision: row.fields.Revision ?? null,
-          GroupeLigne: row.groupeLigne,
-          IndiceLigne: row.indiceLigne,
-        });
+        await args.db.run(
+          `INSERT INTO import_programmation_jalon (BatchId, IdJalon, EstPrevisionnel, DatePrevisionnelle, Version, Code, Revision, GroupeLigne, IndiceLigne)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            id,
+            def.id,
+            slot.estPrevisionnel ? 1 : 0,
+            slot.date,
+            slot.valeur,
+            def.code,
+            row.fields.Revision ?? null,
+            row.groupeLigne,
+            row.indiceLigne,
+          ],
+        );
       }
     }
     for (const d of diffs) {
-      insertCmp.run({
-        BatchId: batchId,
-        GroupeLigne: d.groupeLigne,
-        IndiceLigne: d.indiceLigne,
-        titre_fr: d.titreFr,
-        fieldName: d.fieldName,
-        fieldLabel: d.fieldLabel,
-        oldValue: d.oldValue,
-        newValue: d.newValue,
-        NouveauDocument: d.nouveauDocument ? 1 : 0,
-        table: d.table,
-        oldValue_brut: d.oldValueBrut,
-        newValue_brut: d.newValueBrut,
-        oldEstPrevisionnel: d.oldEstPrevisionnel ? 1 : 0,
-        newEstPrevisionnel: d.newEstPrevisionnel ? 1 : 0,
-      });
+      await args.db.run(
+        `INSERT INTO import_compare (BatchId, GroupeLigne, IndiceLigne, titre_fr, fieldName, fieldLabel, oldValue, newValue, isImported, NouveauDocument, "table", oldValue_brut, newValue_brut, oldEstPrevisionnel, newEstPrevisionnel)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)`,
+        [
+          id,
+          d.groupeLigne,
+          d.indiceLigne,
+          d.titreFr,
+          d.fieldName,
+          d.fieldLabel,
+          d.oldValue,
+          d.newValue,
+          d.nouveauDocument ? 1 : 0,
+          d.table,
+          d.oldValueBrut,
+          d.newValueBrut,
+          d.oldEstPrevisionnel ? 1 : 0,
+          d.newEstPrevisionnel ? 1 : 0,
+        ],
+      );
     }
+    return id;
   });
-  tx();
 
   await args.storage.write(`IMPORT_PPD/${batchId}_${args.fileName}`, args.buffer);
   return {
@@ -245,20 +237,27 @@ const DOCUMENT_FIELDS = new Set([
   "RFA",
 ]);
 
-export function applyImportBatch(
-  db: Database.Database,
+export async function applyImportBatch(
+  db: SqlDatabase,
   batchId: number,
   user: string,
   options?: { onlyWithoutError?: boolean },
-): { appliedDocuments: number; appliedJalons: number } {
-  const batch = db.prepare("SELECT * FROM import_batch WHERE Id = ?").get(batchId) as
-    | { Status: string }
-    | undefined;
+): Promise<{ appliedDocuments: number; appliedJalons: number; skippedErrors: number; alreadyApplied?: boolean }> {
+  const batch = await db.get<{ Status: string; AppliedDocuments?: number; AppliedJalons?: number }>(
+    "SELECT * FROM import_batch WHERE Id = ?",
+    [batchId],
+  );
   if (!batch) throw new Error("Lot d'import introuvable");
+  if (String(batch.Status) === "applied") {
+    return {
+      appliedDocuments: Number(batch.AppliedDocuments ?? 0),
+      appliedJalons: Number(batch.AppliedJalons ?? 0),
+      skippedErrors: 0,
+      alreadyApplied: true,
+    };
+  }
 
-  const raws = db
-    .prepare("SELECT * FROM import_raw WHERE BatchId = ?")
-    .all(batchId) as Array<{
+  const raws = await db.all<{
     Id: number;
     GroupeLigne: number;
     IndiceLigne: string;
@@ -266,22 +265,33 @@ export function applyImportBatch(
     payload_json: string;
     jalon_json: string | null;
     NouveauDocument: number;
-  }>;
+  }>("SELECT * FROM import_raw WHERE BatchId = ?", [batchId]);
 
   const now = new Date().toISOString();
-  let appliedDocuments = 0;
-  let appliedJalons = 0;
+  const skipErrors = options?.onlyWithoutError !== false;
+  const defs = await listJalons(db);
+  const existingDocs = await db.all<Record<string, unknown>>("SELECT * FROM document");
+  const byKey = new Map<string, Record<string, unknown>>();
+  for (const d of existingDocs) {
+    byKey.set(`${Number(d.GroupeLigne)}::${String(d.IndiceLigne ?? "")}`, d);
+  }
 
-  const tx = db.transaction(() => {
+  const result = await db.transaction(async () => {
+    let appliedDocuments = 0;
+    let appliedJalons = 0;
+    let skippedErrors = 0;
+
     for (const raw of raws) {
-      if (options?.onlyWithoutError !== false && raw.erreur) continue;
+      if (skipErrors && raw.erreur) {
+        skippedErrors++;
+        continue;
+      }
       const payload = JSON.parse(raw.payload_json) as Record<string, unknown>;
       remapDocumentAliases(payload);
-      const existing = db
-        .prepare("SELECT * FROM document WHERE GroupeLigne = ? AND IndiceLigne = ?")
-        .get(raw.GroupeLigne, raw.IndiceLigne) as Record<string, unknown> | undefined;
+      const key = `${Number(raw.GroupeLigne)}::${String(raw.IndiceLigne ?? "")}`;
+      const existing = byKey.get(key);
 
-      const fields: Record<string, string | number | bigint | Buffer | null> = {};
+      const fields: Record<string, string | number | null> = {};
       for (const [k, v] of Object.entries(payload)) {
         if (DOCUMENT_FIELDS.has(k)) fields[k] = sqliteValue(v);
       }
@@ -297,31 +307,40 @@ export function applyImportBatch(
       let docId: number;
       if (!existing) {
         const cols = Object.keys(fields);
-        const sql = `INSERT INTO document (${cols.join(",")}) VALUES (${cols.map((c) => `@${c}`).join(",")})`;
-        docId = Number(db.prepare(sql).run(fields).lastInsertRowid);
+        const sql = `INSERT INTO document (${cols.join(",")}) VALUES (${cols.map(() => "?").join(",")})`;
+        const ins = await db.run(
+          sql,
+          cols.map((c) => fields[c]),
+        );
+        docId = ins.lastInsertId;
         appliedDocuments++;
-        db.prepare(
+        await db.run(
           `INSERT INTO doc_histo (IdDocument, GroupeLigne, IndiceLigne, FieldName, OldValue, NewValue, UserName, ChangedAt, IsImport)
            VALUES (?, ?, ?, '_nouveau', '', 'import', ?, ?, 1)`,
-        ).run(docId, raw.GroupeLigne, raw.IndiceLigne, user, now);
+          [docId, raw.GroupeLigne, raw.IndiceLigne, user, now],
+        );
+        byKey.set(key, { Id: docId, ...fields });
       } else {
         docId = Number(existing.Id);
         const sets: string[] = [];
-        const params: Record<string, string | number | bigint | Buffer | null> = { Id: docId };
+        const params: unknown[] = [];
         for (const [k, v] of Object.entries(fields)) {
           if (k === "GroupeLigne" || k === "IndiceLigne") continue;
           if (v === undefined) continue;
           const oldVal = existing[k];
           if (String(oldVal ?? "") === String(v ?? "")) continue;
-          sets.push(`${k} = @${k}`);
-          params[k] = sqliteValue(v);
-          db.prepare(
+          sets.push(`${k} = ?`);
+          params.push(sqliteValue(v));
+          await db.run(
             `INSERT INTO doc_histo (IdDocument, GroupeLigne, IndiceLigne, FieldName, OldValue, NewValue, UserName, ChangedAt, IsImport)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
-          ).run(docId, raw.GroupeLigne, raw.IndiceLigne, k, String(oldVal ?? ""), String(v ?? ""), user, now);
+            [docId, raw.GroupeLigne, raw.IndiceLigne, k, String(oldVal ?? ""), String(v ?? ""), user, now],
+          );
+          existing[k] = v;
         }
         if (sets.length) {
-          db.prepare(`UPDATE document SET ${sets.join(", ")} WHERE Id = @Id`).run(params);
+          params.push(docId);
+          await db.run(`UPDATE document SET ${sets.join(", ")} WHERE Id = ?`, params);
           appliedDocuments++;
         }
       }
@@ -335,7 +354,6 @@ export function applyImportBatch(
             estPrevisionnel: boolean;
           }>)
         : [];
-      const defs = listJalons(db);
       for (const slot of jalons) {
         const def = matchJalonDef(
           {
@@ -348,43 +366,46 @@ export function applyImportBatch(
           defs,
         );
         if (!def) continue;
-        const upsert = db.prepare(
+        await db.run(
           `INSERT INTO programmation_jalon (IdDocument, IdJalon, IdVersion, EstPrevisionnel, DatePrevisionnelle, Version, Code, Revision)
-           VALUES (@IdDocument, @IdJalon, 0, @EstPrevisionnel, @DatePrevisionnelle, @Version, @Code, @Revision)
+           VALUES (?, ?, 0, ?, ?, ?, ?, ?)
            ON CONFLICT(IdDocument, IdJalon) DO UPDATE SET
              EstPrevisionnel = excluded.EstPrevisionnel,
              DatePrevisionnelle = excluded.DatePrevisionnelle,
              Version = excluded.Version,
              Code = excluded.Code,
              Revision = excluded.Revision`,
+          [
+            docId,
+            def.id,
+            slot.estPrevisionnel ? 1 : 0,
+            slot.date,
+            slot.valeur,
+            def.code,
+            fields.Revision ?? null,
+          ],
         );
-        upsert.run({
-          IdDocument: docId,
-          IdJalon: def.id,
-          EstPrevisionnel: slot.estPrevisionnel ? 1 : 0,
-          DatePrevisionnelle: slot.date,
-          Version: slot.valeur,
-          Code: def.code,
-          Revision: fields.Revision ?? null,
-        });
         appliedJalons++;
       }
     }
 
-    db.prepare("UPDATE import_compare SET isImported = 1 WHERE BatchId = ?").run(batchId);
-    db.prepare("UPDATE import_batch SET Status = 'applied' WHERE Id = ?").run(batchId);
+    await db.run("UPDATE import_compare SET isImported = 1 WHERE BatchId = ?", [batchId]);
+    await db.run(
+      "UPDATE import_batch SET Status = 'applied', AppliedDocuments = ?, AppliedJalons = ? WHERE Id = ?",
+      [appliedDocuments, appliedJalons, batchId],
+    );
+    return { appliedDocuments, appliedJalons, skippedErrors };
   });
-  tx();
 
-  return { appliedDocuments, appliedJalons };
+  return result;
 }
 
-function sqliteValue(value: unknown): string | number | bigint | Buffer | null {
+function sqliteValue(value: unknown): string | number | null {
   if (value === undefined || value === null) return null;
   if (typeof value === "boolean") return value ? 1 : 0;
-  if (typeof value === "number" || typeof value === "bigint") return value;
+  if (typeof value === "number") return value;
+  if (typeof value === "bigint") return Number(value);
   if (typeof value === "string") return value;
-  if (Buffer.isBuffer(value)) return value;
   return String(value);
 }
 

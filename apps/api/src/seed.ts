@@ -1,4 +1,4 @@
-import type Database from "better-sqlite3";
+import type { SqlDatabase } from "./sql.js";
 
 interface Named {
   nom: string;
@@ -62,71 +62,83 @@ const JALON_CODES = [
   "JU2.Ei",
 ];
 
-export function seedIfEmpty(db: Database.Database): void {
-  const n = db.prepare("SELECT COUNT(*) AS c FROM lookup_row").get() as { c: number };
-  if (n.c > 0) return;
-  seed(db);
+export interface SeedOptions {
+  extraDocs?: number;
 }
 
-export function seed(db: Database.Database): void {
-  const insertTable = db.prepare("INSERT OR IGNORE INTO lookup_table (table_key, label_fr) VALUES (?, ?)");
-  const insertRow = db.prepare(
-    `INSERT INTO lookup_row (table_key, nom, id_perimetre, id_domaine, id_metier)
-     VALUES (@table_key, @nom, @id_perimetre, @id_domaine, @id_metier)`,
-  );
+export async function seedIfEmpty(db: SqlDatabase): Promise<void> {
+  const n = await db.get<{ c: number }>("SELECT COUNT(*) AS c FROM lookup_row");
+  if ((n?.c ?? 0) > 0) return;
+  const extra = Number(process.env.MI20_SEED_DOCS ?? 3000);
+  await seed(db, { extraDocs: Number.isFinite(extra) && extra >= 0 ? extra : 3000 });
+}
 
-  const tx = db.transaction(() => {
+export async function seed(db: SqlDatabase, options?: SeedOptions): Promise<void> {
+  await db.transaction(async () => {
     for (const t of LOOKUP_TABLES) {
-      insertTable.run(t.key, t.label);
+      await db.run("INSERT OR IGNORE INTO lookup_table (table_key, label_fr) VALUES (?, ?)", [t.key, t.label]);
       for (const row of t.rows) {
-        insertRow.run({
-          table_key: t.key,
-          nom: row.nom,
-          id_perimetre: row.idPerimetre ?? null,
-          id_domaine: row.idDomaine ?? null,
-          id_metier: row.idMetier ?? null,
-        });
+        await db.run(
+          `INSERT INTO lookup_row (table_key, nom, id_perimetre, id_domaine, id_metier)
+           VALUES (?, ?, ?, ?, ?)`,
+          [t.key, row.nom, row.idPerimetre ?? null, row.idDomaine ?? null, row.idMetier ?? null],
+        );
       }
     }
 
-    const insertJalon = db.prepare("INSERT OR IGNORE INTO jalon (Nom, Code) VALUES (?, ?)");
-    for (const code of JALON_CODES) insertJalon.run(code, code);
-    db.prepare("INSERT OR IGNORE INTO version (Nom, Code) VALUES (?, ?)").run("FD", "FD");
-    db.prepare("INSERT OR IGNORE INTO version (Nom, Code) VALUES (?, ?)").run("AV", "AV");
+    for (const code of JALON_CODES) {
+      await db.run("INSERT OR IGNORE INTO jalon (Nom, Code) VALUES (?, ?)", [code, code]);
+    }
+    await db.run("INSERT OR IGNORE INTO version (Nom, Code) VALUES (?, ?)", ["FD", "FD"]);
+    await db.run("INSERT OR IGNORE INTO version (Nom, Code) VALUES (?, ?)", ["AV", "AV"]);
 
-    db.prepare(
-      `INSERT OR IGNORE INTO app_config (key, value) VALUES
-        ('projectName', 'MI20 Arbo'),
-        ('versionIhm', '1.6.6-web'),
-        ('bxTemplateName', 'MI20_BORD_TEMPLATE_M5_V12.xls'),
-        ('exportRatpMask', 'C,AA,AB,AC'),
-        ('nbJalonsPPD', '23'),
-        ('titrePremiereColonneXLS_PPD', 'Num Liv.'),
-        ('titrePremiereColonneXLS_PPD_rapide', 'Nr Livrable')`,
-    ).run();
+    await db.run("INSERT OR IGNORE INTO app_config (key, value) VALUES (?, ?)", ["projectName", "MI20 Arbo"]);
+    await db.run("INSERT OR IGNORE INTO app_config (key, value) VALUES (?, ?)", ["versionIhm", "1.6.6-web"]);
+    await db.run("INSERT OR IGNORE INTO app_config (key, value) VALUES (?, ?)", ["bxTemplateName", "MI20_BORD_TEMPLATE_M5_V12.xls"]);
+    await db.run("INSERT OR IGNORE INTO app_config (key, value) VALUES (?, ?)", ["exportRatpMask", "C,AA,AB,AC"]);
+    await db.run("INSERT OR IGNORE INTO app_config (key, value) VALUES (?, ?)", ["nbJalonsPPD", "23"]);
+    await db.run("INSERT OR IGNORE INTO app_config (key, value) VALUES (?, ?)", ["titrePremiereColonneXLS_PPD", "Num Liv."]);
+    await db.run("INSERT OR IGNORE INTO app_config (key, value) VALUES (?, ?)", ["titrePremiereColonneXLS_PPD_rapide", "Nr Livrable"]);
+    await db.run("INSERT OR IGNORE INTO app_config (key, value) VALUES (?, ?)", ["titrePremiereColonneXLS_RetoursRATP", "NumLivrable"]);
 
-    const caf = lookupId(db, "fournisseur", "CAF");
-    const leader = lookupId(db, "Leader", "CAF");
-    const pic = lookupId(db, "PIC", "PIC-10");
-    const resp = lookupId(db, "Responsable", "RESP DEMO");
-    const domaineCh = lookupId(db, "domaineChargeur", "ECLAIRAGE");
-    const domaine = lookupId(db, "domaine", "ECLAIRAGE");
-    const dossier = lookupId(db, "dossier", "DD");
-    const jalonJd1 = db.prepare("SELECT Id FROM jalon WHERE Code = 'JD1'").get() as { Id: number };
+    const caf = await lookupId(db, "fournisseur", "CAF");
+    const leader = await lookupId(db, "Leader", "CAF");
+    const pic = await lookupId(db, "PIC", "PIC-10");
+    const resp = await lookupId(db, "Responsable", "RESP DEMO");
+    const domaineCh = await lookupId(db, "domaineChargeur", "ECLAIRAGE");
+    const domaine = await lookupId(db, "domaine", "ECLAIRAGE");
+    const dossier = await lookupId(db, "dossier", "DD");
+    const jalonJd1 = await db.get<{ Id: number }>("SELECT Id FROM jalon WHERE Code = 'JD1'");
+    if (!jalonJd1) throw new Error("Jalon JD1 missing after seed");
 
-    const insertDoc = db.prepare(`
-      INSERT INTO document (
-        RefExt, GroupeLigne, IndiceLigne, Revision, Livrable, Titre, Nom,
-        IdLeader, IdFournisseur, IDPic, IdResponsable, IdDomaineChargeur, IdDomaineBord,
-        IdTypeDossier, DelivrableProjet, Langue, Projet, EffMateriel, Homologuant
-      ) VALUES (
-        @RefExt, @GroupeLigne, @IndiceLigne, @Revision, @Livrable, @Titre, @Nom,
-        @IdLeader, @IdFournisseur, @IDPic, @IdResponsable, @IdDomaineChargeur, @IdDomaineBord,
-        @IdTypeDossier, 1, 'FR', 'MI20', '', 0
-      )
-    `);
+    const insertDoc = async (row: Record<string, unknown>) => {
+      const ins = await db.run(
+        `INSERT INTO document (
+          RefExt, GroupeLigne, IndiceLigne, Revision, Livrable, Titre, Nom,
+          IdLeader, IdFournisseur, IDPic, IdResponsable, IdDomaineChargeur, IdDomaineBord,
+          IdTypeDossier, DelivrableProjet, Langue, Projet, EffMateriel, Homologuant
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 'FR', 'MI20', '', 0)`,
+        [
+          row.RefExt,
+          row.GroupeLigne,
+          row.IndiceLigne,
+          row.Revision,
+          row.Livrable,
+          row.Titre,
+          row.Nom,
+          leader,
+          caf,
+          pic,
+          resp,
+          domaineCh,
+          domaine,
+          dossier,
+        ],
+      );
+      return ins.lastInsertId;
+    };
 
-    const d1 = insertDoc.run({
+    const d1 = await insertDoc({
       RefExt: "CAF-ECH-007",
       GroupeLigne: 36,
       IndiceLigne: "9351.3",
@@ -134,16 +146,9 @@ export function seed(db: Database.Database): void {
       Livrable: "36 - Dossiers de Définition (DD) (données de démonstration synthétiques)",
       Titre: "AXE CROCHET (ancien titre démo)",
       Nom: "Spécification de management",
-      IdLeader: leader,
-      IdFournisseur: caf,
-      IDPic: pic,
-      IdResponsable: resp,
-      IdDomaineChargeur: domaineCh,
-      IdDomaineBord: domaine,
-      IdTypeDossier: dossier,
     });
 
-    insertDoc.run({
+    await insertDoc({
       RefExt: "CAF-ECH-041",
       GroupeLigne: 36,
       IndiceLigne: "476",
@@ -151,16 +156,9 @@ export function seed(db: Database.Database): void {
       Livrable: "36 - Dossiers de Définition (DD) (données de démonstration synthétiques)",
       Titre: "MONTAGE ISOLATION CABINE",
       Nom: "Note technique",
-      IdLeader: leader,
-      IdFournisseur: caf,
-      IDPic: pic,
-      IdResponsable: resp,
-      IdDomaineChargeur: domaineCh,
-      IdDomaineBord: domaine,
-      IdTypeDossier: dossier,
     });
 
-    insertDoc.run({
+    const d3 = await insertDoc({
       RefExt: "SYN-DOC-099",
       GroupeLigne: 40,
       IndiceLigne: "12",
@@ -168,50 +166,144 @@ export function seed(db: Database.Database): void {
       Livrable: "40 - Dossiers de démonstration",
       Titre: "DOCUMENT SYNTHÉTIQUE HORS IMPORT",
       Nom: "Demo",
-      IdLeader: leader,
-      IdFournisseur: caf,
-      IDPic: pic,
-      IdResponsable: resp,
-      IdDomaineChargeur: domaineCh,
-      IdDomaineBord: domaine,
-      IdTypeDossier: dossier,
     });
 
-    db.prepare(
+    const pj = await db.run(
       `INSERT INTO programmation_jalon (IdDocument, IdJalon, IdVersion, EstPrevisionnel, Version, Code, Revision)
        VALUES (?, ?, 1, 0, 'AV', 'JD1', 'A')`,
-    ).run(d1.lastInsertRowid, jalonJd1.Id);
+      [d1, jalonJd1.Id],
+    );
 
-    db.prepare(
+    await db.run(
       `INSERT INTO doc_histo (IdDocument, GroupeLigne, IndiceLigne, FieldName, OldValue, NewValue, UserName, ChangedAt, IsImport)
-       VALUES (?, 36, '9351.3', 'Titre', '', 'AXE CROCHET (ancien titre démo)', 'seed', datetime('now'), 0)`,
-    ).run(d1.lastInsertRowid);
+       VALUES (?, 36, '9351.3', 'Titre', '', 'AXE CROCHET (ancien titre démo)', 'seed', ?, 0)`,
+      [d1, new Date().toISOString()],
+    );
+
+    const rev = await db.run(
+      `INSERT INTO revision (Revision, IdProgrammationJalon, NomUtilisateur, EstActive, FichierFicheAvis_AEnvoyer, IdDocument, Commentaire, CreatedAt)
+       VALUES ('A', ?, 'seed', 1, 'FA_SEED_36_9351.3.pdf', ?, 'Indice initial — Form_CREATE_REV (démo synthétique).', ?)`,
+      [pj.lastInsertId, d1, new Date().toISOString()],
+    );
+
+    const bx = await db.run(
+      `INSERT INTO bordereau (IdLeader, Numero, DateEnvoi, NomComplet, EstActif, Commentaire)
+       VALUES (?, 1, ?, 'MI20_BORD_CAF_0001', 1, 'Bordereau de démonstration (seed)')`,
+      [leader, new Date().toISOString().slice(0, 10)],
+    );
+    await db.run(
+      `INSERT INTO envoi (IdBordereau, IdRevision, IdDocument, Titre, Revision, NomUtilisateur)
+       VALUES (?, ?, ?, 'AXE CROCHET (ancien titre démo)', 'A', 'seed')`,
+      [bx.lastInsertId, rev.lastInsertId, d1],
+    );
+
+    await db.run(
+      `INSERT INTO fiche_avis (
+         IdEnvoi, IdDocument, IdRevision, NomFichier, Statut, DateSaisie, Commentaire,
+         ReponseFicheAvis, NomUtilisateur, GroupeLigne, IndiceLigne, Revision, Jalon, FichierFicheAvis
+       ) VALUES (
+         (SELECT Id FROM envoi ORDER BY Id DESC LIMIT 1), ?, ?, 'FA_SEED_36_9351.3.pdf', 'FA', ?,
+         'Fiche avis de démonstration (Form_SaisieRetoursRATP) — donnée synthétique.',
+         'FA', 'seed', 36, '9351.3', 'A', 'JD1', 'FA_SEED_36_9351.3.pdf'
+       )`,
+      [d1, rev.lastInsertId, new Date().toISOString()],
+    );
+
+    void d3;
+    const extra = options?.extraDocs ?? 0;
+    if (extra > 0) {
+      await seedSyntheticDocuments(db, {
+        count: extra,
+        leader,
+        caf,
+        pic,
+        resp,
+        domaineCh,
+        domaine,
+        dossier,
+        jalonId: jalonJd1.Id,
+      });
+    }
   });
-  tx();
 }
 
-export function lookupId(db: Database.Database, table: string, nom: string): number {
-  const row = db
-    .prepare("SELECT id FROM lookup_row WHERE table_key = ? AND UPPER(TRIM(nom)) = UPPER(TRIM(?))")
-    .get(table, nom) as { id: number } | undefined;
+async function seedSyntheticDocuments(
+  db: SqlDatabase,
+  args: {
+    count: number;
+    leader: number;
+    caf: number;
+    pic: number;
+    resp: number;
+    domaineCh: number;
+    domaine: number;
+    dossier: number;
+    jalonId: number;
+  },
+): Promise<void> {
+  const jalonJs1 = await db.get<{ Id: number }>("SELECT Id FROM jalon WHERE Code = 'JS1'");
+  for (let i = 0; i < args.count; i++) {
+    const groupe = 100 + Math.floor(i / 50);
+    const indice = String((i % 50) + 1);
+    const ins = await db.run(
+      `INSERT INTO document (
+        RefExt, GroupeLigne, IndiceLigne, Revision, Livrable, Titre, Nom,
+        IdLeader, IdFournisseur, IDPic, IdResponsable, IdDomaineChargeur, IdDomaineBord,
+        IdTypeDossier, DelivrableProjet, Langue, Projet, EffMateriel, Homologuant
+      ) VALUES (?, ?, ?, 'A', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 'FR', 'MI20', '', 0)`,
+      [
+        `SYN-${groupe}-${indice}`,
+        groupe,
+        indice,
+        `${groupe} - Livrables synthétiques (démo échelle)`,
+        `DOCUMENT SYNTHETIQUE ${groupe} / ${indice}`,
+        "Demo scale",
+        args.leader,
+        args.caf,
+        args.pic,
+        args.resp,
+        args.domaineCh,
+        args.domaine,
+        args.dossier,
+      ],
+    );
+    await db.run(
+      `INSERT INTO programmation_jalon (IdDocument, IdJalon, IdVersion, EstPrevisionnel, Version, Code, Revision)
+       VALUES (?, ?, 0, 0, 'AV', 'JD1', 'A')`,
+      [ins.lastInsertId, args.jalonId],
+    );
+    if (jalonJs1 && i % 3 === 0) {
+      await db.run(
+        `INSERT INTO programmation_jalon (IdDocument, IdJalon, IdVersion, EstPrevisionnel, Version, Code, Revision)
+         VALUES (?, ?, 0, 1, 'FD', 'JS1', 'A')`,
+        [ins.lastInsertId, jalonJs1.Id],
+      );
+    }
+  }
+}
+
+export async function lookupId(db: SqlDatabase, table: string, nom: string): Promise<number> {
+  const row = await db.get<{ id: number }>(
+    "SELECT id FROM lookup_row WHERE table_key = ? AND UPPER(TRIM(nom)) = UPPER(TRIM(?))",
+    [table, nom],
+  );
   if (!row) throw new Error(`Lookup ${table}/${nom} missing after seed`);
   return row.id;
 }
 
-export function loadLookupCatalog(db: Database.Database) {
-  const rows = db
-    .prepare(
-      "SELECT id, table_key, nom, id_perimetre, id_domaine, id_metier FROM lookup_row",
-    )
-    .all() as Array<{
+export async function loadLookupCatalog(db: SqlDatabase) {
+  const rows = await db.all<{
     id: number;
     table_key: string;
     nom: string;
     id_perimetre: number | null;
     id_domaine: number | null;
     id_metier: number | null;
-  }>;
-  const catalog: Record<string, Array<{ id: number; nom: string; idPerimetre?: number | null; idDomaine?: number | null; idMetier?: number | null }>> = {};
+  }>("SELECT id, table_key, nom, id_perimetre, id_domaine, id_metier FROM lookup_row");
+  const catalog: Record<
+    string,
+    Array<{ id: number; nom: string; idPerimetre?: number | null; idDomaine?: number | null; idMetier?: number | null }>
+  > = {};
   for (const r of rows) {
     const item = {
       id: r.id,
@@ -225,4 +317,21 @@ export function loadLookupCatalog(db: Database.Database) {
     if (lower !== r.table_key) (catalog[lower] ??= []).push(item);
   }
   return catalog;
+}
+
+export async function dbStats(db: SqlDatabase) {
+  const one = async (sql: string) => {
+    const row = await db.get<{ c: number }>(sql);
+    return Number(row?.c ?? 0);
+  };
+  return {
+    documents: await one("SELECT COUNT(*) AS c FROM document"),
+    jalonsProgrammes: await one("SELECT COUNT(*) AS c FROM programmation_jalon"),
+    bordereaux: await one("SELECT COUNT(*) AS c FROM bordereau"),
+    envois: await one("SELECT COUNT(*) AS c FROM envoi"),
+    revisions: await one("SELECT COUNT(*) AS c FROM revision"),
+    retoursRatp: await one("SELECT COUNT(*) AS c FROM fiche_avis"),
+    histo: await one("SELECT COUNT(*) AS c FROM doc_histo"),
+    dialect: db.dialect,
+  };
 }

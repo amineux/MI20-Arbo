@@ -46,8 +46,7 @@ export function RevisionsPage() {
   return (
     <div>
       <PageHeader title="Révisions" form="Form_CREATE_REV">
-        Indice de révision lié à programmation_jalon (clé IdDocument + IdJalon). Saisie démo — pas de règles métier
-        inventées hors handoff. Les lignes seedées (A sur 36 / 9351.3, B sur 40 / 12) montrent l&apos;écran vivant.
+        Indice de révision lié à programmation_jalon (clé IdDocument + IdJalon). Création persistée en base (Form_CREATE_REV). Les lignes seedées (A sur 36 / 9351.3) montrent l&apos;écran vivant.
       </PageHeader>
       <div style={{ display: "flex", gap: 8, margin: "16px 0", flexWrap: "wrap", alignItems: "end" }}>
         <Field label="Document">
@@ -111,7 +110,7 @@ export function RevisionsPage() {
           </Table>
         </div>
       )}
-      <Body1 style={{ marginTop: 12 }}>Fichiers fiche avis sur révision : phase suivante (Form_SaisieRetoursRATP).</Body1>
+      <Body1 style={{ marginTop: 12 }}>Les fichiers fiche avis se gèrent dans Retours RATP (ImportRetoursRATP).</Body1>
     </div>
   );
 }

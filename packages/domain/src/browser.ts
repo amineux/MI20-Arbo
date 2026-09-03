@@ -19,7 +19,15 @@ export { parseImportColumnsCsv, normalizeHeader, indexColumnsByHeader, canonical
 export { unpivotJalons, matchJalonDef, jalonsToRawFields, cellToDateIso, jalonCodeFromHeader } from "./jalon.js";
 export { parsePpdSheet, detectHeaderRow } from "./parse-workbook.js";
 export { computeDifferences, docKey } from "./compare.js";
-export { parseWorkbookToAoa, buildPpdExportWorkbook, excelColumnLetter, fillOfficialPpdTemplate } from "./xlsx-io.js";
+export { parseWorkbookToAoa, buildPpdExportWorkbook, excelColumnLetter, fillOfficialPpdTemplate, writeAoaWorkbook } from "./xlsx-io.js";
+export {
+  parseFaSheet,
+  detectFaHeaderRow,
+  buildFaImportAoa,
+  FA_FIRST_COLUMN_TITLES,
+  FA_EXPORT_HEADERS,
+} from "./parse-fa.js";
+export type { StagedFicheAvis, ParseFaResult, FaWorkbookRow } from "./parse-fa.js";
 export {
   isOfficialTemplateName,
   OFFICIAL_TEMPLATES,
@@ -29,4 +37,5 @@ export {
   PPD_TEMPLATE_SMALL_FILE,
   BX_TEMPLATE_FILE,
   BX_SAMPLE_FILE,
+  FA_RAPIDE_FIXTURE,
 } from "./fixtures-names.js";

@@ -124,6 +124,21 @@ export function BordereauDetailPage() {
       <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
         <Button
           appearance="primary"
+          size="large"
+          onClick={async () => {
+            try {
+              const r = await api.post<{ folder: string }>(`/api/bordereaux/${id}/export`);
+              setMsg(`Pack généré : ${r.folder}`);
+              await api.download(`/api/bordereaux/${id}/download`, `${String(data.bordereau.NomComplet)}.zip`);
+              toast("success", "ZIP EXPORT_BX téléchargé", r.folder);
+            } catch (e) {
+              toast("error", "Export / ZIP", e instanceof Error ? e.message : "échec");
+            }
+          }}
+        >
+          Exporter et télécharger le ZIP
+        </Button>
+        <Button
           onClick={async () => {
             try {
               const r = await api.post<{ folder: string }>(`/api/bordereaux/${id}/export`);
@@ -134,20 +149,7 @@ export function BordereauDetailPage() {
             }
           }}
         >
-          Exporter le pack
-        </Button>
-        <Button
-          onClick={async () => {
-            try {
-              await api.post(`/api/bordereaux/${id}/export`);
-              await api.download(`/api/bordereaux/${id}/download`, `${String(data.bordereau.NomComplet)}.zip`);
-              toast("success", "ZIP téléchargé", "Pack EXPORT_BX + archive");
-            } catch (e) {
-              toast("error", "ZIP", e instanceof Error ? e.message : "échec export / téléchargement");
-            }
-          }}
-        >
-          Télécharger ZIP
+          Générer le pack seulement
         </Button>
       </div>
       {msg ? <Body1 style={{ marginTop: 8 }}>{msg}</Body1> : null}

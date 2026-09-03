@@ -13,7 +13,8 @@
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "seed:fixture": "tsx src/scripts/generate-sample-ppd.ts"
+    "seed:fixture": "tsx src/scripts/generate-sample-ppd.ts",
+    "seed:fa": "tsx src/scripts/generate-fa-fixture.ts"
   },
   "dependencies": {
     "xlsx": "^0.18.5"

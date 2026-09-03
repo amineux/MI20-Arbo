@@ -1,4 +1,4 @@
-/** Lightweight fetch patch — no SheetJS. Handlers load on first /api call. */
+/** Lightweight fetch patch. Handlers (and SheetJS via @mi20/domain) load on first /api call. */
 export function isStaticDemo(): boolean {
   return import.meta.env.VITE_STATIC_DEMO === "true";
 }

@@ -4,24 +4,37 @@ import {
   MessageBarBody,
   MessageBarTitle,
   Spinner,
-  Title3,
   makeStyles,
   tokens,
 } from "@fluentui/react-components";
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 
 const useStyles = makeStyles({
-  page: { display: "flex", flexDirection: "column", gap: "16px" },
-  lead: { color: tokens.colorNeutralForeground2, maxWidth: "72ch" },
-  meta: { color: tokens.colorNeutralForeground3, fontSize: "12px" },
+  page: { display: "flex", flexDirection: "column", gap: "10px" },
+  title: {
+    margin: 0,
+    fontSize: "34px",
+    lineHeight: "1.12",
+    fontWeight: 600,
+    letterSpacing: "-0.03em",
+    color: "#1d1d1f",
+  },
+  lead: { color: tokens.colorNeutralForeground2, maxWidth: "68ch", fontSize: "15px", lineHeight: "1.5" },
   empty: {
-    padding: "40px 24px",
-    marginTop: "16px",
-    border: `1px dashed ${tokens.colorNeutralStroke2}`,
-    borderRadius: tokens.borderRadiusLarge,
+    padding: "56px 28px",
+    marginTop: "20px",
+    border: `1px solid ${tokens.colorNeutralStroke2}`,
+    borderRadius: "20px",
     backgroundColor: tokens.colorNeutralBackground1,
     textAlign: "center",
-    boxShadow: tokens.shadow2,
+    boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 8px 24px rgba(27, 54, 93, 0.05)",
+  },
+  emptyTitle: {
+    margin: 0,
+    fontSize: "22px",
+    fontWeight: 600,
+    letterSpacing: "-0.02em",
+    color: "#1d1d1f",
   },
   toastWrap: {
     position: "fixed",
@@ -37,18 +50,15 @@ const useStyles = makeStyles({
 
 export function PageHeader({
   title,
-  form,
   children,
 }: {
   title: string;
-  form?: string;
   children?: ReactNode;
 }) {
   const s = useStyles();
   return (
-    <div className={s.page} style={{ gap: 8 }}>
-      <Title3>{title}</Title3>
-      {form ? <span className={s.meta}>Access · {form} · docs/handoff/TEKKY_BASE_ARBO_HANDOFF.md</span> : null}
+    <div className={s.page}>
+      <h1 className={s.title}>{title}</h1>
       {children ? <Body1 className={s.lead}>{children}</Body1> : null}
     </div>
   );
@@ -58,18 +68,18 @@ export function EmptyState({ title, detail, action }: { title: string; detail: s
   const s = useStyles();
   return (
     <div className={s.empty}>
-      <Title3>{title}</Title3>
-      <Body1 className={s.lead} style={{ margin: "8px auto 0" }}>
+      <h2 className={s.emptyTitle}>{title}</h2>
+      <Body1 className={s.lead} style={{ margin: "10px auto 0" }}>
         {detail}
       </Body1>
-      {action ? <div style={{ marginTop: 16 }}>{action}</div> : null}
+      {action ? <div style={{ marginTop: 20 }}>{action}</div> : null}
     </div>
   );
 }
 
 export function Loading({ label = "Chargement" }: { label?: string }) {
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: 32 }}>
       <Spinner label={label} />
     </div>
   );

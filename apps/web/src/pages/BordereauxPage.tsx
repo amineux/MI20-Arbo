@@ -4,6 +4,7 @@ import {
   Field,
   Input,
   Option,
+  Spinner,
   Table,
   TableBody,
   TableCell,
@@ -31,9 +32,14 @@ export function BordereauxPage() {
   const [leaders, setLeaders] = useState<Array<{ id: number; nom: string }>>([]);
   const [leaderId, setLeaderId] = useState<string>("");
   const [numero, setNumero] = useState("");
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  const reload = () => api.get<{ rows: Bx[] }>("/api/bordereaux").then((r) => setRows(r.rows));
+  const reload = () =>
+    api
+      .get<{ rows: Bx[] }>("/api/bordereaux")
+      .then((r) => setRows(r.rows))
+      .finally(() => setLoading(false));
 
   useEffect(() => {
     reload();
@@ -45,11 +51,11 @@ export function BordereauxPage() {
 
   return (
     <div>
-      <PageHeader title="Bordereaux" form="Form_CREATE_BX / Form_MGT_BX">
-        Template officiel MI20_BORD_TEMPLATE_M5_V12.xls. Pack{" "}
-        <code>EXPORT_BX/MI20_BORD_&lt;code&gt;/</code> (manifest + classeur copié).
+      <PageHeader title="Bordereaux">
+        En-tête CAF, rattachement de livrables, pack <code>EXPORT_BX/MI20_BORD_&lt;code&gt;/</code> (manifest +
+        classeur).
       </PageHeader>
-      <div style={{ display: "flex", gap: 8, margin: "16px 0", flexWrap: "wrap", alignItems: "end" }}>
+      <div className="mi20-toolbar">
         <Field label="Leader technique">
           <Dropdown
             style={{ minWidth: 180 }}
@@ -89,8 +95,10 @@ export function BordereauxPage() {
           Créer le bordereau
         </Button>
       </div>
-      {rows.length === 0 ? (
-        <EmptyState title="Aucun bordereau" detail="Choisissez un leader technique puis Créer (parcours démo étape 3)." />
+      {loading ? (
+        <Spinner label="Chargement des bordereaux…" />
+      ) : rows.length === 0 ? (
+        <EmptyState title="Aucun bordereau" detail="Choisissez un leader technique puis créez l'en-tête." />
       ) : (
         <div className="mi20-table-wrap">
           <Table size="extra-small">

@@ -103,7 +103,7 @@ export interface DemoState {
   files: Record<string, { type: string; b64: string }>;
 }
 
-const STORAGE_KEY = "mi20-arbo-static-demo-v4";
+const STORAGE_KEY = "mi20-arbo-static-demo-v5";
 
 function alloc(state: DemoState): number {
   const id = state.nextId;
@@ -181,41 +181,137 @@ export function createSeedState(): DemoState {
     Homologuant: 0,
   };
 
-  const d1: DocumentRow = {
-    Id: alloc(state),
-    RefExt: "CAF-ECH-007",
-    GroupeLigne: 36,
-    IndiceLigne: "9351.3",
-    Revision: "A",
-    Livrable: "36 - Dossiers de Définition (DD) (données de démonstration synthétiques)",
-    Titre: "AXE CROCHET (ancien titre démo)",
-    Nom: "Spécification de management",
-    ...baseDoc,
-  };
-  const d2: DocumentRow = {
-    Id: alloc(state),
-    RefExt: "CAF-ECH-041",
-    GroupeLigne: 36,
-    IndiceLigne: "476",
-    Revision: "A",
-    Livrable: "36 - Dossiers de Définition (DD) (données de démonstration synthétiques)",
-    Titre: "MONTAGE ISOLATION CABINE",
-    Nom: "Note technique",
-    ...baseDoc,
-  };
-  const d3: DocumentRow = {
-    Id: alloc(state),
-    RefExt: "SYN-DOC-099",
-    GroupeLigne: 40,
-    IndiceLigne: "12",
-    Revision: "B",
-    Livrable: "40 - Dossiers de démonstration",
-    Titre: "DOCUMENT SYNTHÉTIQUE HORS IMPORT",
-    Nom: "Demo",
-    ...baseDoc,
-  };
-  state.documents.push(d1, d2, d3);
-  state.programmation.push({
+  const jalonJs1 = state.jalons.find((j) => j.Code === "JS1")!;
+  const jalonJp11 = state.jalons.find((j) => j.Code === "JP1.1")!;
+  const now = new Date().toISOString();
+
+  const docs: Array<Partial<DocumentRow> & { GroupeLigne: number; IndiceLigne: string; Titre: string }> = [
+    {
+      RefExt: "CAF-ECH-007",
+      GroupeLigne: 36,
+      IndiceLigne: "9351.3",
+      Revision: "A",
+      Livrable: "36 - Dossiers de Définition (DD)",
+      Titre: "AXE CROCHET",
+      Nom: "Spécification de management",
+    },
+    {
+      RefExt: "CAF-ECH-041",
+      GroupeLigne: 36,
+      IndiceLigne: "476",
+      Revision: "A",
+      Livrable: "36 - Dossiers de Définition (DD)",
+      Titre: "MONTAGE ISOLATION CABINE",
+      Nom: "Note technique",
+    },
+    {
+      RefExt: "CAF-ECH-088",
+      GroupeLigne: 36,
+      IndiceLigne: "880",
+      Revision: "A",
+      Livrable: "36 - Dossiers de Définition (DD)",
+      Titre: "ÉCLAIRAGE CABINE CONDUCTEUR",
+      Nom: "Dossier de définition",
+    },
+    {
+      RefExt: "CAF-SCH-012",
+      GroupeLigne: 12,
+      IndiceLigne: "210",
+      Revision: "A",
+      Livrable: "12 - Schémas électriques",
+      Titre: "SCHÉMA UNIFILAIRE ÉCLAIRAGE",
+      Nom: "Schéma",
+    },
+    {
+      RefExt: "CAF-NC-018",
+      GroupeLigne: 18,
+      IndiceLigne: "44.2",
+      Revision: "B",
+      Livrable: "18 - Notes de calcul",
+      Titre: "NOTE DE CALCUL STRUCTURE CAISSE",
+      Nom: "Note de calcul",
+    },
+    {
+      RefExt: "CAF-PLN-022",
+      GroupeLigne: 22,
+      IndiceLigne: "1101",
+      Revision: "A",
+      Livrable: "22 - Plans d'implantation",
+      Titre: "PLAN D'IMPLANTATION ÉQUIPEMENTS",
+      Nom: "Plan",
+    },
+    {
+      RefExt: "CAF-PRC-028",
+      GroupeLigne: 28,
+      IndiceLigne: "7",
+      Revision: "A",
+      Livrable: "28 - Procédures de contrôle",
+      Titre: "PROCÉDURE DE CONTRÔLE EN USINE",
+      Nom: "Procédure",
+    },
+    {
+      RefExt: "CAF-NT-040",
+      GroupeLigne: 40,
+      IndiceLigne: "12",
+      Revision: "B",
+      Livrable: "40 - Notices techniques",
+      Titre: "NOTICE TECHNIQUE HORS ANNEXE",
+      Nom: "Notice",
+    },
+    {
+      RefExt: "CAF-NU-045",
+      GroupeLigne: 45,
+      IndiceLigne: "3.1",
+      Revision: "A",
+      Livrable: "45 - Notices d'utilisation",
+      Titre: "NOTICE D'UTILISATION CONDUCTEUR",
+      Nom: "Notice d'utilisation",
+    },
+    {
+      RefExt: "CAF-BM-050",
+      GroupeLigne: 50,
+      IndiceLigne: "19",
+      Revision: "A",
+      Livrable: "50 - Bilans de masse",
+      Titre: "BILAN DE MASSE RAME",
+      Nom: "Bilan",
+    },
+    {
+      RefExt: "CAF-SM-008",
+      GroupeLigne: 8,
+      IndiceLigne: "101",
+      Revision: "C",
+      Livrable: "8 - Spécifications de management",
+      Titre: "SPÉCIFICATION DE MANAGEMENT DOCUMENTAIRE",
+      Nom: "Spécification",
+    },
+    {
+      RefExt: "CAF-IF-015",
+      GroupeLigne: 15,
+      IndiceLigne: "33",
+      Revision: "A",
+      Livrable: "15 - Interfaces électriques",
+      Titre: "INTERFACE ÉLECTRIQUE CABINE",
+      Nom: "Interface",
+    },
+  ];
+
+  for (const spec of docs) {
+    state.documents.push({
+      Id: alloc(state),
+      ...baseDoc,
+      ...spec,
+    });
+  }
+
+  const byKey = (g: number, i: string) =>
+    state.documents.find((d) => Number(d.GroupeLigne) === g && String(d.IndiceLigne) === i)!;
+  const d1 = byKey(36, "9351.3");
+  const d2 = byKey(36, "476");
+  const dCalc = byKey(18, "44.2");
+  const dSm = byKey(8, "101");
+
+  const prog1 = {
     Id: alloc(state),
     IdDocument: d1.Id,
     IdJalon: jalonJd1.Id,
@@ -225,44 +321,105 @@ export function createSeedState(): DemoState {
     Version: "AV",
     Code: "JD1",
     Revision: "A",
-  });
-  state.histo.push({
-    Id: alloc(state),
-    IdDocument: d1.Id,
-    GroupeLigne: 36,
-    IndiceLigne: "9351.3",
-    FieldName: "Titre",
-    OldValue: "",
-    NewValue: "AXE CROCHET (ancien titre démo)",
-    UserName: "seed",
-    ChangedAt: new Date().toISOString(),
-    IsImport: 0,
-  });
+  };
+  state.programmation.push(
+    prog1,
+    {
+      Id: alloc(state),
+      IdDocument: d1.Id,
+      IdJalon: jalonJs1.Id,
+      IdVersion: 1,
+      EstPrevisionnel: 1,
+      DatePrevisionnelle: "2026-11-15",
+      Version: "FD",
+      Code: "JS1",
+      Revision: "A",
+    },
+    {
+      Id: alloc(state),
+      IdDocument: d2.Id,
+      IdJalon: jalonJd1.Id,
+      IdVersion: 1,
+      EstPrevisionnel: 0,
+      DatePrevisionnelle: null,
+      Version: "AV",
+      Code: "JD1",
+      Revision: "A",
+    },
+    {
+      Id: alloc(state),
+      IdDocument: dCalc.Id,
+      IdJalon: jalonJp11.Id,
+      IdVersion: 1,
+      EstPrevisionnel: 0,
+      DatePrevisionnelle: "2026-06-30",
+      Version: "FD",
+      Code: "JP1.1",
+      Revision: "B",
+    },
+    {
+      Id: alloc(state),
+      IdDocument: dSm.Id,
+      IdJalon: jalonJs1.Id,
+      IdVersion: 1,
+      EstPrevisionnel: 0,
+      DatePrevisionnelle: null,
+      Version: "FD",
+      Code: "JS1",
+      Revision: "C",
+    },
+  );
+  state.histo.push(
+    {
+      Id: alloc(state),
+      IdDocument: d1.Id,
+      GroupeLigne: 36,
+      IndiceLigne: "9351.3",
+      FieldName: "Titre",
+      OldValue: "",
+      NewValue: "AXE CROCHET",
+      UserName: "seed",
+      ChangedAt: now,
+      IsImport: 0,
+    },
+    {
+      Id: alloc(state),
+      IdDocument: dCalc.Id,
+      GroupeLigne: 18,
+      IndiceLigne: "44.2",
+      FieldName: "Revision",
+      OldValue: "A",
+      NewValue: "B",
+      UserName: "seed",
+      ChangedAt: now,
+      IsImport: 0,
+    },
+  );
   state.revisions.push({
     Id: alloc(state),
     Revision: "A",
     IdDocument: d1.Id,
-    IdProgrammationJalon: state.programmation[0]?.Id ?? null,
+    IdProgrammationJalon: prog1.Id,
     GroupeLigne: d1.GroupeLigne,
     IndiceLigne: d1.IndiceLigne,
     Titre: d1.Titre,
     NomUtilisateur: "seed",
     EstActive: 1,
-    Commentaire: "Indice initial — Form_CREATE_REV (démo synthétique).",
-    CreatedAt: new Date().toISOString(),
+    Commentaire: "Indice initial — jalon JD1.",
+    CreatedAt: now,
   });
   state.revisions.push({
     Id: alloc(state),
     Revision: "B",
-    IdDocument: d3.Id,
-    IdProgrammationJalon: null,
-    GroupeLigne: d3.GroupeLigne,
-    IndiceLigne: d3.IndiceLigne,
-    Titre: d3.Titre,
+    IdDocument: dCalc.Id,
+    IdProgrammationJalon: state.programmation.find((p) => p.IdDocument === dCalc.Id)?.Id ?? null,
+    GroupeLigne: dCalc.GroupeLigne,
+    IndiceLigne: dCalc.IndiceLigne,
+    Titre: dCalc.Titre,
     NomUtilisateur: "seed",
     EstActive: 1,
-    Commentaire: "Révision B sur livrable hors import.",
-    CreatedAt: new Date().toISOString(),
+    Commentaire: "Passage à l'indice B.",
+    CreatedAt: now,
   });
   state.ratpReturns.push({
     Id: alloc(state),
@@ -274,21 +431,21 @@ export function createSeedState(): DemoState {
     Avis: "FA",
     ReponseFicheAvis: "FA",
     Statut: "FA",
-    FichierFicheAvis: "FA_SEED_36_9351.3.pdf",
-    NomFichier: "FA_SEED_36_9351.3.pdf",
-    Commentaire: "Fiche avis de démonstration (Form_SaisieRetoursRATP) — donnée synthétique.",
+    FichierFicheAvis: "FA_36_9351.3.pdf",
+    NomFichier: "FA_36_9351.3.pdf",
+    Commentaire: "Avis RATP sur AXE CROCHET — à reprendre.",
     NomUtilisateur: "seed",
-    CreatedAt: new Date().toISOString(),
+    CreatedAt: now,
   });
   const bxId = alloc(state);
   state.bordereaux.push({
     Id: bxId,
     IdLeader: leader,
     Numero: 1,
-    DateEnvoi: new Date().toISOString().slice(0, 10),
+    DateEnvoi: now.slice(0, 10),
     NomComplet: "MI20_BORD_CAF_0001",
     EstActif: 1,
-    Commentaire: "Bordereau de démonstration (seed)",
+    Commentaire: "Envoi CAF — lot éclairage cabine",
     ExportPath: null,
   });
   const envoiId = alloc(state);
@@ -323,6 +480,16 @@ export function getState(): DemoState {
   memory = createSeedState();
   saveState();
   return memory;
+}
+
+export function resetState(): DemoState {
+  memory = null;
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+  return getState();
 }
 
 export function saveState(): void {

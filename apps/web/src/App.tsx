@@ -1,10 +1,14 @@
 import {
-  makeStyles,
+  Menu,
+  MenuItem,
+  MenuList,
+  MenuPopover,
+  MenuTrigger,
   MessageBar,
   MessageBarBody,
   MessageBarTitle,
   Text,
-  Title3,
+  makeStyles,
   tokens,
 } from "@fluentui/react-components";
 import {
@@ -19,9 +23,10 @@ import {
   ArrowUploadRegular,
   HistoryRegular,
   ArrowSyncRegular,
+  MoreHorizontalRegular,
 } from "@fluentui/react-icons";
 import { lazy, Suspense, useEffect, useLayoutEffect, useState, type ReactNode } from "react";
-import { NavLink, Route, Routes, useLocation } from "react-router-dom";
+import { NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { api } from "./api";
 import { hideBootSplash } from "./boot";
 import { HomePage } from "./pages/HomePage";
@@ -49,57 +54,110 @@ const useStyles = makeStyles({
     flexDirection: "column",
     backgroundColor: tokens.colorNeutralBackground2,
   },
+  chrome: {
+    position: "sticky",
+    top: 0,
+    zIndex: 30,
+    backdropFilter: "saturate(180%) blur(20px)",
+    backgroundColor: "rgba(255, 255, 255, 0.72)",
+    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+  },
   header: {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
     gap: "16px",
     flexWrap: "wrap",
-    padding: "14px 24px",
-    backgroundColor: "#1B365D",
-    color: "#fff",
+    padding: "16px 28px 8px",
   },
   brand: { display: "flex", flexDirection: "column", gap: "2px" },
-  headerText: { color: "#fff" },
-  headerSub: { color: "rgba(255,255,255,0.82)", fontSize: "13px" },
+  mark: {
+    fontSize: "13px",
+    fontWeight: 600,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    color: "#1B365D",
+  },
+  title: {
+    margin: 0,
+    fontSize: "22px",
+    lineHeight: "1.15",
+    fontWeight: 600,
+    letterSpacing: "-0.02em",
+    color: "#1d1d1f",
+  },
+  headerSub: {
+    color: tokens.colorNeutralForeground3,
+    fontSize: "13px",
+  },
+  version: {
+    color: tokens.colorNeutralForeground3,
+    fontSize: "12px",
+  },
   nav: {
-    backgroundColor: tokens.colorNeutralBackground1,
-    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
-    padding: "0 12px",
-    overflowX: "auto",
+    padding: "8px 20px 12px",
     display: "flex",
     gap: "4px",
+    overflowX: "auto",
+    alignItems: "center",
   },
   navLink: {
     display: "inline-flex",
     alignItems: "center",
     gap: "6px",
-    padding: "10px 12px",
+    padding: "8px 12px",
     fontSize: "13px",
     color: tokens.colorNeutralForeground2,
     textDecoration: "none",
-    borderBottom: "2px solid transparent",
+    borderRadius: "999px",
     whiteSpace: "nowrap",
+    border: "1px solid transparent",
   },
   navActive: {
     color: "#1B365D",
     fontWeight: 600,
-    borderBottomColor: "#1B365D",
+    backgroundColor: "rgba(27, 54, 93, 0.08)",
+    border: "1px solid rgba(27, 54, 93, 0.10)",
+  },
+  moreBtn: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "6px",
+    padding: "8px 12px",
+    fontSize: "13px",
+    color: tokens.colorNeutralForeground2,
+    background: "transparent",
+    borderRadius: "999px",
+    border: "1px solid transparent",
+    cursor: "pointer",
+    fontFamily: "inherit",
+  },
+  moreActive: {
+    color: "#1B365D",
+    fontWeight: 600,
+    backgroundColor: "rgba(27, 54, 93, 0.08)",
+    border: "1px solid rgba(27, 54, 93, 0.10)",
   },
   main: {
     flex: 1,
-    padding: "20px 24px 40px",
-    maxWidth: "1280px",
+    padding: "36px 28px 64px",
+    maxWidth: "1120px",
     width: "100%",
     margin: "0 auto",
     boxSizing: "border-box",
   },
   footer: {
-    padding: "12px 24px",
+    padding: "20px 28px 28px",
     color: tokens.colorNeutralForeground3,
     fontSize: "12px",
-    borderTop: `1px solid ${tokens.colorNeutralStroke2}`,
-    backgroundColor: tokens.colorNeutralBackground1,
+    textAlign: "center",
+  },
+  lockWrap: {
+    maxWidth: "1120px",
+    margin: "0 auto",
+    padding: "12px 28px 0",
+    boxSizing: "border-box",
+    width: "100%",
   },
 });
 
@@ -110,24 +168,34 @@ interface Meta {
   lock: { locked: number; message: string | null };
 }
 
-const NAV: Array<{ to: string; label: string; icon: ReactNode; end?: boolean }> = [
+const PRIMARY: Array<{ to: string; label: string; icon: ReactNode; end?: boolean }> = [
   { to: "/", label: "Accueil", icon: <HomeRegular />, end: true },
   { to: "/documents", label: "Documents", icon: <DocumentRegular /> },
   { to: "/import-ppd", label: "Import PPD", icon: <ArrowUploadRegular /> },
-  { to: "/export-ppd", label: "Export PPD", icon: <ArrowDownloadRegular /> },
   { to: "/bordereaux", label: "Bordereaux", icon: <BoxRegular /> },
+  { to: "/retours-ratp", label: "Retours RATP", icon: <ClipboardTaskRegular /> },
+];
+
+const MORE: Array<{ to: string; label: string; icon: ReactNode }> = [
+  { to: "/export-ppd", label: "Export PPD", icon: <ArrowDownloadRegular /> },
   { to: "/lookups", label: "Référentiels", icon: <DatabaseRegular /> },
   { to: "/revisions", label: "Révisions", icon: <ArrowSyncRegular /> },
-  { to: "/retours-ratp", label: "Retours RATP", icon: <ClipboardTaskRegular /> },
   { to: "/kpi", label: "KPI / bilans", icon: <ChartMultipleRegular /> },
   { to: "/rapports", label: "Rapports", icon: <HistoryRegular /> },
   { to: "/verrouillage", label: "Verrouillage", icon: <LockClosedRegular /> },
 ];
 
+function pathMatches(pathname: string, to: string, end?: boolean): boolean {
+  if (end) return pathname === to;
+  return pathname === to || pathname.startsWith(`${to}/`);
+}
+
 export function App() {
   const s = useStyles();
   const loc = useLocation();
+  const nav = useNavigate();
   const [meta, setMeta] = useState<Meta | null>(null);
+  const moreActive = MORE.some((item) => pathMatches(loc.pathname, item.to));
 
   useLayoutEffect(() => {
     hideBootSplash();
@@ -140,45 +208,59 @@ export function App() {
   return (
     <ToastHost>
       <div className={s.root}>
-        <header className={s.header}>
-          <div className={s.brand}>
-            <Title3 className={s.headerText}>{meta?.projectName ?? "MI20 Arbo"}</Title3>
-            <span className={s.headerSub}>Plan de production documentaire · bordereaux · IHM 1.6.6</span>
-          </div>
-          <Text className={s.headerText}>v{meta?.version ?? "1.0.0"}</Text>
-        </header>
-        {import.meta.env.VITE_STATIC_DEMO === "true" ? (
-          <MessageBar intent="info">
-            <MessageBarBody>
-              <MessageBarTitle>Démo publique temporaire</MessageBarTitle>
-              Données synthétiques dans le navigateur — pas Entra, pas SharePoint. Production :{" "}
-              <a href="https://alstomgroup.sharepoint.com/sites/BT_BTPIIMaroc-GestionDoc">BT_BTPIIMaroc-GestionDoc</a>.
-              Si l&apos;accueil est vide, blanc, ou l&apos;ancien écran de landing : <b>Ctrl+Maj+R</b> (hard refresh) pour
-              ignorer le cache du navigateur.
-            </MessageBarBody>
-          </MessageBar>
-        ) : null}
+        <div className={s.chrome}>
+          <header className={s.header}>
+            <div className={s.brand}>
+              <span className={s.mark}>MI20</span>
+              <h1 className={s.title}>{meta?.projectName ?? "MI20 Arbo"}</h1>
+              <span className={s.headerSub}>
+                Plan de production documentaire · bordereaux · fiches d&apos;avis
+                {import.meta.env.VITE_STATIC_DEMO === "true" ? " · enregistré dans ce navigateur" : ""}
+              </span>
+            </div>
+            <Text className={s.version}>v{meta?.version ?? "1.1.0"}</Text>
+          </header>
+          <nav className={s.nav} aria-label="Modules">
+            {PRIMARY.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) => `${s.navLink} ${isActive ? s.navActive : ""}`}
+              >
+                {item.icon}
+                {item.label}
+              </NavLink>
+            ))}
+            <Menu>
+              <MenuTrigger disableButtonEnhancement>
+                <button type="button" className={`${s.moreBtn} ${moreActive ? s.moreActive : ""}`} aria-label="Plus de modules">
+                  <MoreHorizontalRegular />
+                  Plus
+                </button>
+              </MenuTrigger>
+              <MenuPopover>
+                <MenuList>
+                  {MORE.map((item) => (
+                    <MenuItem key={item.to} onClick={() => nav(item.to)}>
+                      {item.label}
+                    </MenuItem>
+                  ))}
+                </MenuList>
+              </MenuPopover>
+            </Menu>
+          </nav>
+        </div>
         {meta?.lock?.locked ? (
-          <MessageBar intent="warning">
-            <MessageBarBody>
-              <MessageBarTitle>Base verrouillée</MessageBarTitle>
-              {meta.lock.message || "Form_VerrouillageBase — les mises à jour sont suspendues."}
-            </MessageBarBody>
-          </MessageBar>
+          <div className={s.lockWrap}>
+            <MessageBar intent="warning">
+              <MessageBarBody>
+                <MessageBarTitle>Base verrouillée</MessageBarTitle>
+                {meta.lock.message || "Les mises à jour sont suspendues."}
+              </MessageBarBody>
+            </MessageBar>
+          </div>
         ) : null}
-        <nav className={s.nav} aria-label="Modules">
-          {NAV.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) => `${s.navLink} ${isActive ? s.navActive : ""}`}
-            >
-              {item.icon}
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
         <main className={s.main}>
           <Suspense fallback={<Loading label="Chargement du module…" />}>
             <Routes>
@@ -199,10 +281,7 @@ export function App() {
             </Routes>
           </Suspense>
         </main>
-        <footer className={s.footer}>
-          Outil interne MI20 Arbo — inspiré de l&apos;IHM Access BASE ARBO 1.6.6. Données de démo synthétiques. Modules :
-          docs/handoff (pas Form_ARCHI).
-        </footer>
+        <footer className={s.footer}>MI20 Arbo</footer>
       </div>
     </ToastHost>
   );

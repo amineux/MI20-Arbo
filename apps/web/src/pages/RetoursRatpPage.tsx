@@ -39,7 +39,7 @@ interface FaBatch {
 
 export function RetoursRatpPage() {
   const { toast } = useToast();
-  const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
+  const [rows, setRows] = useState<Array<Record<string, unknown>> | null>(null);
   const [docs, setDocs] = useState<DocOpt[]>([]);
   const [avis, setAvis] = useState("FA");
   const [commentaire, setCommentaire] = useState("");
@@ -71,10 +71,9 @@ export function RetoursRatpPage() {
 
   return (
     <div>
-      <PageHeader title="Retours RATP / fiches d'avis" form="Form_SaisieRetoursRATP / ImportRetoursRATP">
-        Import Excel (en-tête <b>NumLivrable</b>) puis application : met à jour <code>revision</code>,{" "}
-        <code>envoi</code> et <code>fiche_avis</code>. Les lignes sans livrable correspondant sont listées, pas un
-        no-op silencieux.
+      <PageHeader title="Retours RATP / fiches d'avis">
+        Import Excel (en-tête <b>NumLivrable</b>) puis application : met à jour révisions, envois et fiches d&apos;avis.
+        Les lignes sans livrable correspondant restent en erreur.
       </PageHeader>
       <TabList selectedValue={tab} onTabSelect={(_, d) => setTab(d.value as typeof tab)} style={{ margin: "16px 0" }}>
         <Tab value="list">Saisie / liste</Tab>
@@ -214,10 +213,7 @@ export function RetoursRatpPage() {
                   {applying ? <Spinner size="tiny" /> : null}
                   {String(batch.batch.Status) === "applied" ? "Lot FA déjà appliqué" : "Appliquer les fiches d'avis"}
                 </Button>
-                <span className="hint">
-                  Équivalent Access ImportRetoursRATP : écrit ReponseFicheAvis / FichierFicheAvis sur envoi et
-                  révision.
-                </span>
+                <span className="hint">Écrit l&apos;avis et le fichier FA sur l&apos;envoi et la révision du livrable.</span>
               </div>
               {applied ? (
                 <MessageBar intent="success" style={{ marginTop: 8 }}>
@@ -234,7 +230,7 @@ export function RetoursRatpPage() {
         </div>
       ) : (
         <>
-          <div style={{ display: "flex", gap: 8, margin: "16px 0", flexWrap: "wrap", alignItems: "end" }}>
+          <div className="mi20-toolbar">
             <Field label="Document">
               <Dropdown
                 style={{ minWidth: 280 }}
@@ -279,8 +275,16 @@ export function RetoursRatpPage() {
               Enregistrer un retour
             </Button>
           </div>
-          {rows.length === 0 ? (
-            <EmptyState title="Aucun retour" detail="Saisissez un avis ou importez un Excel FA." />
+          {rows === null ? null : rows.length === 0 ? (
+            <EmptyState
+              title="Aucun retour"
+              detail="Saisissez un avis, ou importez un classeur Excel (colonne NumLivrable)."
+              action={
+                <Button appearance="primary" onClick={() => setTab("import")}>
+                  Ouvrir l&apos;import Excel
+                </Button>
+              }
+            />
           ) : (
             <div className="mi20-table-wrap">
               <Table size="extra-small">
@@ -313,8 +317,8 @@ export function RetoursRatpPage() {
               </Table>
             </div>
           )}
-          <Body1 style={{ marginTop: 12 }}>
-            L&apos;onglet <b>Import Excel FA</b> reprend ImportRetoursRATP (colonne NumLivrable).
+          <Body1 className="mi20-note">
+            L&apos;onglet <b>Import Excel FA</b> attend la colonne NumLivrable.
           </Body1>
         </>
       )}

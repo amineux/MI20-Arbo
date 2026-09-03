@@ -9,9 +9,8 @@ export function ExportPpdPage() {
 
   return (
     <div>
-      <PageHeader title="Export PPD" form="Form_EXPORT / DoExportPPD">
-        Remplissage du template (démo : Copie_de_PPD_Template.xlsx, jalons 44–66 / dates 67–89). Masque RATP{" "}
-        <b>C, AA, AB, AC</b> ([EXPORT_RATP]). Pas de dumps EXPORT_PPD de production.
+      <PageHeader title="Export PPD">
+        Génère un classeur PPD à partir des documents et jalons courants. Masque RATP <b>C, AA, AB, AC</b>.
       </PageHeader>
       <div style={{ marginTop: 16 }}>
         <Checkbox
@@ -53,7 +52,7 @@ export function ExportPpdPage() {
       >
         Générer le classeur PPD
       </Button>
-      <Body1 style={{ marginTop: 12 }}>Le fichier se télécharge dans le navigateur (copie locale en démo).</Body1>
+      <Body1 className="mi20-note">Le classeur se télécharge dans le navigateur.</Body1>
     </div>
   );
 }

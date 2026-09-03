@@ -13,35 +13,38 @@ export function VerrouillagePage({ onChange }: { onChange: () => void }) {
 
   return (
     <div>
-      <PageHeader title="Verrouillage de la base" form="Form_VerrouillageBase">
-        Bannière globale lorsque la base est verrouillée. Les règles métier (import en cours, etc.) seront enrichies
-        ensuite.
+      <PageHeader title="Verrouillage de la base">
+        Lorsque la base est verrouillée, les écritures (import, édition, bordereaux, référentiels) sont refusées.
       </PageHeader>
-      <div style={{ marginTop: 16, display: "flex", gap: 8 }}>
-        <Button
-          appearance="primary"
-          onClick={async () => {
-            await api.post("/api/lock", { locked: true, message: "Base verrouillée pour maintenance (démo)." });
-            setLock(await api.get("/api/lock"));
-            onChange();
-            toast("warning", "Base verrouillée");
-          }}
-        >
-          Verrouiller
-        </Button>
-        <Button
-          onClick={async () => {
-            await api.post("/api/lock", { locked: false, message: null });
-            setLock(await api.get("/api/lock"));
-            onChange();
-            toast("success", "Base déverrouillée");
-          }}
-        >
-          Déverrouiller
-        </Button>
+      <div className="mi20-panel" style={{ marginTop: 20, maxWidth: 480 }}>
+        <Body1>
+          État : <b>{lock?.locked ? "verrouillée" : "ouverte"}</b>
+        </Body1>
+        {lock?.message ? <Body1 className="mi20-note">{lock.message}</Body1> : null}
+        <div style={{ marginTop: 16, display: "flex", gap: 8 }}>
+          <Button
+            appearance="primary"
+            onClick={async () => {
+              await api.post("/api/lock", { locked: true, message: "Base verrouillée pour maintenance." });
+              setLock(await api.get("/api/lock"));
+              onChange();
+              toast("warning", "Base verrouillée", "Les mises à jour sont suspendues.");
+            }}
+          >
+            Verrouiller
+          </Button>
+          <Button
+            onClick={async () => {
+              await api.post("/api/lock", { locked: false, message: null });
+              setLock(await api.get("/api/lock"));
+              onChange();
+              toast("success", "Base déverrouillée");
+            }}
+          >
+            Déverrouiller
+          </Button>
+        </div>
       </div>
-      <Body1 style={{ marginTop: 16 }}>État : {lock?.locked ? "verrouillée" : "ouverte"}</Body1>
-      {lock?.message ? <Body1>{lock.message}</Body1> : null}
     </div>
   );
 }

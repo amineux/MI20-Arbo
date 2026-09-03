@@ -13,7 +13,7 @@ import {
   TableRow,
 } from "@fluentui/react-components";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { EmptyState, PageHeader } from "../ui";
 
@@ -41,7 +41,7 @@ export function DocumentsPage() {
   const [page, setPage] = useState(1);
   const [data, setData] = useState<{ total: number; rows: DocRow[] } | null>(null);
   const [fournisseurs, setFournisseurs] = useState<LookupOpt[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -49,8 +49,8 @@ export function DocumentsPage() {
   }, []);
 
   useEffect(() => {
+    setLoading(true);
     const t = setTimeout(() => {
-      setLoading(true);
       const q = new URLSearchParams({ search, page: String(page), pageSize: "50" });
       if (fournisseurId) q.set("fournisseurId", fournisseurId);
       api
@@ -58,16 +58,16 @@ export function DocumentsPage() {
         .then(setData)
         .catch((e: Error) => setError(e.message))
         .finally(() => setLoading(false));
-    }, 200);
+    }, search ? 200 : 0);
     return () => clearTimeout(t);
   }, [search, fournisseurId, page]);
 
   return (
     <div>
-      <PageHeader title="Documents" form="Form_EDIT_DOC + Form_FILTRES_RECHERCHE">
+      <PageHeader title="Documents">
         Clé métier <b>GroupeLigne + IndiceLigne</b> (ex. 36 / 9351.3). Recherche titre, réf. externe, n° de ligne.
       </PageHeader>
-      <div style={{ display: "flex", gap: 8, margin: "16px 0", flexWrap: "wrap" }}>
+      <div className="mi20-toolbar">
         <Input
           style={{ minWidth: 280, flex: 1 }}
           placeholder="Titre, réf. externe, n° ligne…"
@@ -96,8 +96,16 @@ export function DocumentsPage() {
       </div>
       {loading ? <Spinner label="Chargement" /> : null}
       {error ? <Body1>{error}</Body1> : null}
-      {!loading && (data?.rows.length ?? 0) === 0 ? (
-        <EmptyState title="Aucun document" detail="Ajustez la recherche ou importez un PPD (Import rapide)." />
+      {!loading && data && data.rows.length === 0 ? (
+        <EmptyState
+          title="Aucun document"
+          detail="Ajustez la recherche, ou importez un classeur PPD pour alimenter la liste."
+          action={
+            <Link to="/import-ppd">
+              <Button appearance="primary">Choisir un fichier Excel…</Button>
+            </Link>
+          }
+        />
       ) : (
         <div className="mi20-table-wrap">
           <Table size="extra-small">

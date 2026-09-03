@@ -572,10 +572,31 @@ function demoStats(s: ReturnType<typeof getState>) {
   };
 }
 
+function assertUnlocked(): void {
+  const lock = getState().lock;
+  if (lock.locked) {
+    throw new DemoHttpError(lock.message || "Base verrouillée — les mises à jour sont suspendues.", 409);
+  }
+}
+
+function lookupNomKey(nom: string): string {
+  return nom.trim().toUpperCase();
+}
+
+function findLookupDuplicate(table: string, nom: string, exceptId?: number) {
+  const key = lookupNomKey(nom);
+  return getState().lookupRows.find(
+    (r) => r.table_key === table && r.id !== exceptId && lookupNomKey(r.nom) === key,
+  );
+}
+
 export async function handleDemoApi(url: URL, init?: RequestInit): Promise<Response> {
   const method = (init?.method ?? "GET").toUpperCase();
   const path = url.pathname.replace(/\/+$/, "") || "/";
   const q = url.searchParams;
+  const writes = method === "POST" || method === "PUT" || method === "PATCH" || method === "DELETE";
+  const lockExempt = path === "/api/lock" || path === "/api/exports/ppd";
+  if (writes && !lockExempt) assertUnlocked();
   const s = getState();
 
   if (path === "/api/health" && method === "GET") {
@@ -587,14 +608,14 @@ export async function handleDemoApi(url: URL, init?: RequestInit): Promise<Respo
   if (path === "/api/meta" && method === "GET") {
     return json({
       projectName: "MI20 Arbo",
-      version: "1.0.0",
+      version: "1.1.0",
       inspiredBy: "Access BASE ARBO MI20 IHM 1.6.6",
       lock: s.lock,
       ppd: DEFAULT_PPD_CONFIG,
       bxTemplate: BX_TEMPLATE_FILE,
       defaultImportFixture: DEFAULT_RAPIDE_FIXTURE,
+      faImportFixture: FA_RAPIDE_FIXTURE,
       templates: OFFICIAL_TEMPLATES,
-      publicDemo: true,
       dialect: "browser",
       stats: demoStats(s),
     });
@@ -705,6 +726,9 @@ export async function handleDemoApi(url: URL, init?: RequestInit): Promise<Respo
     const body = await readJson(init);
     const nom = String(body.nom ?? "").trim();
     if (!nom) throw new DemoHttpError("Nom obligatoire", 400);
+    if (findLookupDuplicate(table, nom)) {
+      throw new DemoHttpError("Nom déjà présent (UCase Trim)", 409);
+    }
     const id = nextId();
     s.lookupRows.push({
       id,
@@ -723,7 +747,15 @@ export async function handleDemoApi(url: URL, init?: RequestInit): Promise<Respo
     const id = Number(lookupRow[2]);
     const body = await readJson(init);
     const row = s.lookupRows.find((r) => r.id === id && r.table_key === table);
-    if (row && body.nom) row.nom = String(body.nom);
+    if (!row) throw new DemoHttpError("Ligne introuvable", 404);
+    if (body.nom) {
+      const nom = String(body.nom).trim();
+      if (!nom) throw new DemoHttpError("Nom obligatoire", 400);
+      if (findLookupDuplicate(table, nom, id)) {
+        throw new DemoHttpError("Nom déjà présent (UCase Trim)", 409);
+      }
+      row.nom = nom;
+    }
     saveState();
     return json({ ok: true });
   }
@@ -947,7 +979,7 @@ export async function handleDemoApi(url: URL, init?: RequestInit): Promise<Respo
       type: "text/plain",
       b64: bytesToB64(
         encoder.encode(
-          `Pack bordereau ${bx.NomComplet}\nStructure Access: EXPORT_BX/MI20_BORD_<code>/\nLes PDF livrables se placent dans ce dossier.\nDémo navigateur (données en mémoire / localStorage).\n`,
+          `Pack bordereau ${bx.NomComplet}\nStructure : EXPORT_BX/MI20_BORD_<code>/\nLes PDF livrables se placent dans ce dossier.\n`,
         ),
       ),
     };
@@ -971,17 +1003,32 @@ export async function handleDemoApi(url: URL, init?: RequestInit): Promise<Respo
   }
 
   if (path === "/api/revisions" && method === "GET") {
-    return json({ rows: s.revisions, stub: true, accessForm: "Form_CREATE_REV" });
+    const rows = s.revisions.map((r) => {
+      const prog = s.programmation.find((p) => p.Id === Number(r.IdProgrammationJalon));
+      const def = prog ? s.jalons.find((j) => j.Id === prog.IdJalon) : undefined;
+      return {
+        ...r,
+        JalonCode: def?.Code ?? prog?.Code ?? null,
+        JalonVersion: prog?.Version ?? null,
+      };
+    });
+    return json({ rows });
   }
   if (path === "/api/revisions" && method === "POST") {
     const body = await readJson(init);
     const id = nextId();
     const doc = body.idDocument ? s.documents.find((d) => d.Id === Number(body.idDocument)) : undefined;
+    if (!doc) throw new DemoHttpError("Document obligatoire", 400);
+    const requestedJalon = body.idProgrammationJalon != null ? Number(body.idProgrammationJalon) : NaN;
+    const jalonProg =
+      (Number.isFinite(requestedJalon)
+        ? s.programmation.find((p) => p.Id === requestedJalon && p.IdDocument === doc.Id)
+        : undefined) ?? s.programmation.find((p) => p.IdDocument === doc.Id);
     const row = {
       Id: id,
       Revision: String(body.revision ?? "A"),
-      IdDocument: doc?.Id ?? (body.idDocument ?? null),
-      IdProgrammationJalon: body.idProgrammationJalon ?? null,
+      IdDocument: doc.Id,
+      IdProgrammationJalon: jalonProg?.Id ?? null,
       GroupeLigne: doc?.GroupeLigne ?? null,
       IndiceLigne: doc?.IndiceLigne ?? null,
       Titre: doc?.Titre ?? null,
@@ -998,7 +1045,7 @@ export async function handleDemoApi(url: URL, init?: RequestInit): Promise<Respo
     return json(row);
   }
   if (path === "/api/ratp-returns" && method === "GET") {
-    return json({ rows: s.ratpReturns, stub: false, accessForm: "Form_SaisieRetoursRATP" });
+    return json({ rows: s.ratpReturns });
   }
   if (path === "/api/ratp-returns" && method === "POST") {
     const body = await readJson(init);
@@ -1028,22 +1075,12 @@ export async function handleDemoApi(url: URL, init?: RequestInit): Promise<Respo
   }
   if (path === "/api/kpi" && method === "GET") {
     return json({
-      stub: true,
-      accessForms: ["export_KPI1", "BilanEnvois", "DoctsAutorisation"],
       templates: OFFICIAL_TEMPLATES.filter((t) => ["kpi", "bilan", "docts"].includes(t.role)),
-      stats: {
-        documents: s.documents.length,
-        jalonsProgrammes: s.programmation.length,
-        bordereaux: s.bordereaux.length,
-        revisions: s.revisions.length,
-        retoursRatp: s.ratpReturns.length,
-        histo: s.histo.length,
-        dialect: "browser",
-      },
+      stats: demoStats(s),
     });
   }
   if (path === "/api/reports" && method === "GET") {
-    return json({ stub: true, accessForm: "Form_REPORT", histo: [...s.histo].slice(-100).reverse() });
+    return json({ histo: [...s.histo].slice(-100).reverse() });
   }
 
   throw new DemoHttpError(`API démo : ${method} ${path} non géré`, 404);

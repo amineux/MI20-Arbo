@@ -19,7 +19,7 @@ import {
   TableRow,
   Textarea,
 } from "@fluentui/react-components";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import { EmptyState, PageHeader, useToast } from "../ui";
 
@@ -45,6 +45,8 @@ export function RetoursRatpPage() {
   const [commentaire, setCommentaire] = useState("");
   const [idDocument, setIdDocument] = useState("");
   const [busy, setBusy] = useState(false);
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [applying, setApplying] = useState(false);
   const [tab, setTab] = useState<"list" | "import">("list");
   const [batch, setBatch] = useState<FaBatch | null>(null);
@@ -81,13 +83,16 @@ export function RetoursRatpPage() {
 
       {tab === "import" ? (
         <div>
-          <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
+          <div className="mi20-import-panel">
             <input
+              ref={fileInputRef}
               type="file"
-              accept=".xlsx,.xls"
+              accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+              style={{ display: "none" }}
               onChange={async (e) => {
                 const file = e.target.files?.[0];
                 if (!file) return;
+                setSelectedFileName(file.name);
                 setBusy(true);
                 setApplied(null);
                 const fd = new FormData();
@@ -103,31 +108,46 @@ export function RetoursRatpPage() {
                   toast("error", "Import FA", err instanceof Error ? err.message : "échec");
                 } finally {
                   setBusy(false);
+                  if (fileInputRef.current) fileInputRef.current.value = "";
                 }
               }}
             />
-            <Button
-              appearance="primary"
-              disabled={busy}
-              onClick={async () => {
-                setBusy(true);
-                setApplied(null);
-                try {
-                  const r = await api.post<{ batchId: number; rowCount: number; errorCount: number; matchedCount: number }>(
-                    "/api/imports/fa/demo",
-                  );
-                  toast("success", "Exemple FA chargé", `${r.rowCount} lignes · ${r.matchedCount} document(s)`);
-                  loadBatch(r.batchId);
-                } catch (err) {
-                  toast("error", "Import FA", err instanceof Error ? err.message : "échec");
-                } finally {
-                  setBusy(false);
-                }
-              }}
-            >
-              Charger Import_Retours_RATP_exemple.xlsx
-            </Button>
-            {busy ? <Spinner size="tiny" /> : null}
+            <div className="mi20-import-primary">
+              <Button appearance="primary" size="large" disabled={busy} onClick={() => fileInputRef.current?.click()}>
+                Choisir un fichier Excel…
+              </Button>
+              {busy ? <Spinner size="tiny" /> : null}
+            </div>
+            {selectedFileName ? (
+              <Body1 className="mi20-file-chip">Fichier sélectionné : <b>{selectedFileName}</b></Body1>
+            ) : (
+              <Body1 className="mi20-file-hint">En-tête attendu : <b>NumLivrable</b> — formats .xlsx / .xls.</Body1>
+            )}
+            <details className="mi20-demo-details">
+              <summary>Exemple de démo</summary>
+              <div className="mi20-demo-row">
+                <Button
+                  disabled={busy}
+                  onClick={async () => {
+                    setBusy(true);
+                    setApplied(null);
+                    try {
+                      const r = await api.post<{ batchId: number; rowCount: number; errorCount: number; matchedCount: number }>(
+                        "/api/imports/fa/demo",
+                      );
+                      toast("success", "Exemple FA chargé", `${r.rowCount} lignes · ${r.matchedCount} document(s)`);
+                      loadBatch(r.batchId);
+                    } catch (err) {
+                      toast("error", "Import FA", err instanceof Error ? err.message : "échec");
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  Import_Retours_RATP_exemple.xlsx
+                </Button>
+              </div>
+            </details>
           </div>
           {batch ? (
             <>
@@ -208,7 +228,7 @@ export function RetoursRatpPage() {
           ) : (
             <EmptyState
               title="Aucun lot FA"
-              detail="Chargez Import_Retours_RATP_exemple.xlsx (NumLivrable) ou un classeur équivalent."
+              detail="Cliquez sur « Choisir un fichier Excel… » (NumLivrable) ou utilisez l’exemple de démo."
             />
           )}
         </div>

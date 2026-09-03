@@ -58,6 +58,7 @@ export function ImportPpdPage() {
   const location = useLocation();
   const { toast } = useToast();
   const [rapide, setRapide] = useState(true);
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [applying, setApplying] = useState(false);
   const [tab, setTab] = useState<"compare" | "new" | "err">("compare");
@@ -161,6 +162,7 @@ export function ImportPpdPage() {
   };
 
   const uploadWorkbook = async (file: File) => {
+    setSelectedFileName(file.name);
     setBusy(true);
     setErrorMsg(null);
     setApplied(null);
@@ -214,9 +216,8 @@ export function ImportPpdPage() {
   return (
     <div>
       <PageHeader title="Import PPD" form="ImportPPD / ImportPPD_Rapide / ImportPPD_Jalons_Rapide">
-        Pipeline Access : Excel officiel (SheetJS) → import_raw → comparaison → application. Défaut :{" "}
-        <b>Import_Rapide_exemple.xlsx</b> (Nr Livrable). Complet : PPD_Template (Num Liv.). Lignes en erreur LDD{" "}
-        <code>UCase(Trim(Nom))</code> sont listées et ignorées à l&apos;application.
+        Importez un classeur Excel, comparez, puis appliquez. Rapide = colonne <b>Nr Livrable</b> · Complet ={" "}
+        <b>Num Liv.</b> Les erreurs LDD (<code>UCase(Trim(Nom))</code>) sont listées et ignorées à l&apos;application.
       </PageHeader>
       {autorunHint || (busy && !detail) ? (
         <MessageBar intent="info" style={{ marginTop: 12 }}>
@@ -227,34 +228,59 @@ export function ImportPpdPage() {
           </MessageBarBody>
         </MessageBar>
       ) : null}
-      <div style={{ display: "flex", gap: 12, alignItems: "center", margin: "16px 0", flexWrap: "wrap" }}>
+      <div className="mi20-import-panel">
         <input
           ref={fileInputRef}
           type="file"
-          accept=".xlsx,.xls"
+          accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+          style={{ display: "none" }}
           onChange={(e) => {
             const file = e.target.files?.[0];
             if (!file) return;
             void uploadWorkbook(file);
           }}
         />
-        <Checkbox checked={rapide} label="Import rapide (Nr Livrable)" onChange={(_, d) => setRapide(!!d.checked)} />
-        <Button appearance="primary" disabled={busy} onClick={() => runDemo()}>
-          Charger Import_Rapide_exemple.xlsx
-        </Button>
-        <Button disabled={busy} onClick={() => runDemo("Import_Rapide_Jalons.xlsx")}>
-          Charger Import_Rapide_Jalons.xlsx
-        </Button>
-        <Button
-          disabled={busy}
-          onClick={() => {
-            setRapide(false);
-            void runDemo("PPD_Template.xlsx");
-          }}
-        >
-          Charger PPD_Template.xlsx (mode complet)
-        </Button>
-        {busy ? <Spinner size="tiny" /> : null}
+        <div className="mi20-import-primary">
+          <Button
+            appearance="primary"
+            size="large"
+            disabled={busy}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            Choisir un fichier Excel…
+          </Button>
+          <Checkbox
+            checked={rapide}
+            label="Import rapide (Nr Livrable)"
+            onChange={(_, d) => setRapide(!!d.checked)}
+          />
+          {busy ? <Spinner size="tiny" /> : null}
+        </div>
+        {selectedFileName ? (
+          <Body1 className="mi20-file-chip">Fichier sélectionné : <b>{selectedFileName}</b></Body1>
+        ) : (
+          <Body1 className="mi20-file-hint">Formats acceptés : .xlsx / .xls — le dialogue système s’ouvre au clic.</Body1>
+        )}
+        <details className="mi20-demo-details">
+          <summary>Exemples de démo (fixtures)</summary>
+          <div className="mi20-demo-row">
+            <Button disabled={busy} onClick={() => runDemo()}>
+              Import_Rapide_exemple.xlsx
+            </Button>
+            <Button disabled={busy} onClick={() => runDemo("Import_Rapide_Jalons.xlsx")}>
+              Import_Rapide_Jalons.xlsx
+            </Button>
+            <Button
+              disabled={busy}
+              onClick={() => {
+                setRapide(false);
+                void runDemo("PPD_Template.xlsx");
+              }}
+            >
+              PPD_Template.xlsx (complet)
+            </Button>
+          </div>
+        </details>
       </div>
       {result ? (
         <MessageBar intent={result.rowCount === 0 ? "warning" : "success"}>
@@ -324,8 +350,8 @@ export function ImportPpdPage() {
         </>
       ) : (
         <EmptyState
-          title="Aucun lot chargé"
-          detail="Parcours démo : Accueil → « Lancer l'import rapide », ou cliquez « Charger Import_Rapide_exemple.xlsx »."
+          title="Choisissez un fichier Excel"
+          detail="Cliquez sur « Choisir un fichier Excel… » pour ouvrir le sélecteur (.xlsx / .xls), ou utilisez un exemple de démo ci-dessus."
         />
       )}
     </div>

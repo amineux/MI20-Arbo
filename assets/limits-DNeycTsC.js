@@ -1,0 +1,2 @@
+const e=15e5,a="Ce classeur est trop volumineux pour la démo GitHub Pages (analyse Excel dans le navigateur, stockage localStorage). Les PPD Access (~30 000 lignes, 15–34 Mo) se traitent dans l'application complète : npm run dev (http://127.0.0.1:5173) ou docker compose — l'API parse Excel côté serveur, pagine la comparaison et applique sans charger tout le classeur dans le navigateur.";export{e as D,a};
+//# sourceMappingURL=limits-DNeycTsC.js.map

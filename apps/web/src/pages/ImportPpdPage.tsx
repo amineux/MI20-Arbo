@@ -18,6 +18,8 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
+import { isStaticDemo } from "../demo/install";
+import { DEMO_LARGE_FILE_MESSAGE, DEMO_MAX_UPLOAD_BYTES } from "../demo/limits";
 import { EmptyState, PageHeader, useToast } from "../ui";
 
 interface BatchInfo {
@@ -26,6 +28,9 @@ interface BatchInfo {
   nouveaux: Array<Record<string, unknown>>;
   errors: Array<Record<string, unknown>>;
   raw: Array<Record<string, unknown>>;
+  totals?: { compare: number; nouveaux: number; errors: number; raw: number };
+  page?: number;
+  pageSize?: number;
 }
 
 interface ImportSummary {
@@ -44,12 +49,22 @@ interface ApplyResult {
   alreadyApplied?: boolean;
 }
 
+type ImportTab = "compare" | "new" | "err";
+
+const PAGE_SIZE = 200;
+
 /** Prevents StrictMode double-fire of the guided tour autorun. */
 let autorunInFlight = false;
 
 function applyToastBody(r: ApplyResult): string {
   const skipped = r.skippedErrors ? ` · ${r.skippedErrors} ligne(s) LDD ignorée(s)` : "";
   return `${r.appliedDocuments} document(s) · ${r.appliedJalons} jalon(s)${skipped}.`;
+}
+
+function apiTab(tab: ImportTab): string {
+  if (tab === "new") return "new";
+  if (tab === "err") return "err";
+  return "compare";
 }
 
 export function ImportPpdPage() {
@@ -61,7 +76,8 @@ export function ImportPpdPage() {
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [applying, setApplying] = useState(false);
-  const [tab, setTab] = useState<"compare" | "new" | "err">("compare");
+  const [tab, setTab] = useState<ImportTab>("compare");
+  const [listPage, setListPage] = useState(1);
   const [result, setResult] = useState<ImportSummary | null>(null);
   const [detail, setDetail] = useState<BatchInfo | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -70,10 +86,16 @@ export function ImportPpdPage() {
   const skipReload = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const appliedBatchId = useRef<number | null>(null);
+  const staticDemo = isStaticDemo();
 
-  const load = (id: number) => {
-    api
-      .get<BatchInfo>(`/api/imports/${id}`)
+  const load = (id: number, tabName: ImportTab = tab, page = listPage) => {
+    const q = new URLSearchParams({
+      tab: apiTab(tabName),
+      page: String(page),
+      pageSize: String(PAGE_SIZE),
+    });
+    return api
+      .get<BatchInfo>(`/api/imports/${id}?${q}`)
       .then((d) => {
         setDetail(d);
         if (String(d.batch.Status) === "applied") {
@@ -84,9 +106,12 @@ export function ImportPpdPage() {
           });
           appliedBatchId.current = Number(d.batch.Id);
         }
-        if (d.nouveaux.length && !d.compare.length) setTab("new");
+        return d;
       })
-      .catch((e: Error) => toast("error", "Import", e.message));
+      .catch((e: Error) => {
+        toast("error", "Import", e.message);
+        return null;
+      });
   };
 
   const applyBatch = async (id: number): Promise<ApplyResult> => {
@@ -101,7 +126,7 @@ export function ImportPpdPage() {
         r.alreadyApplied ? "Déjà appliqué" : "Modifications appliquées",
         applyToastBody(r),
       );
-      load(id);
+      await load(id);
       return r;
     } catch (e) {
       const msg = e instanceof Error ? e.message : "échec";
@@ -127,11 +152,10 @@ export function ImportPpdPage() {
     }
     skipReload.current = true;
     nav(`/import-ppd/${r.batchId}`, { replace: true, state: null });
-    const d = await api.get<BatchInfo>(`/api/imports/${r.batchId}`);
-    setDetail(d);
-    if (d.nouveaux.length) setTab("new");
-    else if (d.errors.length && !d.compare.length) setTab("err");
-    else setTab("compare");
+    const nextTab: ImportTab = r.newCount && !r.diffCount ? "new" : r.errorCount && !r.diffCount ? "err" : "compare";
+    setTab(nextTab);
+    setListPage(1);
+    await load(r.batchId, nextTab, 1);
   };
 
   const runDemo = async (file?: string, thenApply = false) => {
@@ -163,6 +187,12 @@ export function ImportPpdPage() {
 
   const uploadWorkbook = async (file: File) => {
     setSelectedFileName(file.name);
+    if (staticDemo && file.size > DEMO_MAX_UPLOAD_BYTES) {
+      setErrorMsg(DEMO_LARGE_FILE_MESSAGE);
+      toast("warning", "Démo Pages", "Fichier trop volumineux pour le navigateur.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
     setBusy(true);
     setErrorMsg(null);
     setApplied(null);
@@ -203,8 +233,9 @@ export function ImportPpdPage() {
       skipReload.current = false;
       return;
     }
-    if (batchId) load(Number(batchId));
-  }, [batchId]);
+    if (batchId) void load(Number(batchId), tab, listPage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- tab/page drive pagination of the same lot
+  }, [batchId, tab, listPage]);
 
   const currentBatchId = Number(batchId ?? result?.batchId ?? detail?.batch.Id ?? 0);
   const detailId = Number(detail?.batch.Id ?? 0);
@@ -213,18 +244,47 @@ export function ImportPpdPage() {
     thisBatchViewed &&
     (String(detail?.batch.Status ?? "") === "applied" || appliedBatchId.current === currentBatchId);
 
+  const totals = detail?.totals;
+  const compareCount = totals?.compare ?? detail?.compare.length ?? 0;
+  const newCount = totals?.nouveaux ?? detail?.nouveaux.length ?? 0;
+  const errCount = totals?.errors ?? detail?.errors.length ?? 0;
+  const tabTotal = tab === "compare" ? compareCount : tab === "new" ? newCount : errCount;
+  const pageSize = detail?.pageSize ?? PAGE_SIZE;
+  const maxPage = Math.max(1, Math.ceil(tabTotal / pageSize));
+
   return (
     <div>
       <PageHeader title="Import PPD">
         Importez un classeur Excel, comparez, puis appliquez. Rapide = colonne <b>Nr Livrable</b> · Complet ={" "}
         <b>Num Liv.</b> Les erreurs de référentiel (nom unique, insensible à la casse) sont listées et ignorées à
-        l&apos;application.
+        l&apos;application. La comparaison est paginée (lots Access ~30 000 écarts).
       </PageHeader>
+      {staticDemo ? (
+        <MessageBar intent="warning" style={{ marginTop: 12 }}>
+          <MessageBarBody>
+            <MessageBarTitle>Démo GitHub Pages</MessageBarTitle>
+            Cette page analyse Excel dans le navigateur et n&apos;accepte que de petits classeurs. Un PPD Access
+            (~31 000 documents, 15–34 Mo) doit être importé dans l&apos;application complète :{" "}
+            <b>npm run dev</b> (http://127.0.0.1:5173) ou <b>docker compose</b> — l&apos;API parse côté serveur, pagine
+            la comparaison et applique sans geler le navigateur.
+          </MessageBarBody>
+        </MessageBar>
+      ) : (
+        <MessageBar intent="info" style={{ marginTop: 12 }}>
+          <MessageBarBody>
+            <MessageBarTitle>Import côté serveur</MessageBarTitle>
+            Le classeur est envoyé à <code>/api</code> (limite 80 Mo). La comparaison ne charge pas tout le lot dans le
+            navigateur — utilisez les pages ou « Exporter la comparaison ».
+          </MessageBarBody>
+        </MessageBar>
+      )}
       {autorunHint || (busy && !detail) ? (
         <MessageBar intent="info" style={{ marginTop: 12 }}>
           <MessageBarBody>
             <MessageBarTitle>Import en cours</MessageBarTitle>
-            Chargement du classeur puis préparation de la comparaison…
+            {staticDemo
+              ? "Analyse du classeur dans le navigateur…"
+              : "Envoi du classeur à l'API, staging, puis préparation de la comparaison…"}
             {busy ? <Spinner size="tiny" style={{ marginLeft: 8 }} /> : null}
           </MessageBarBody>
         </MessageBar>
@@ -315,15 +375,45 @@ export function ImportPpdPage() {
       ) : null}
       {detail ? (
         <>
-          <TabList selectedValue={tab} onTabSelect={(_, d) => setTab(d.value as typeof tab)} style={{ marginTop: 16 }}>
-            <Tab value="compare">Comparaison ({detail.compare.length})</Tab>
-            <Tab value="new">Nouveaux documents ({detail.nouveaux.length})</Tab>
-            <Tab value="err">Erreurs LDD ({detail.errors.length})</Tab>
+          <TabList
+            selectedValue={tab}
+            onTabSelect={(_, d) => {
+              setTab(d.value as ImportTab);
+              setListPage(1);
+            }}
+            style={{ marginTop: 16 }}
+          >
+            <Tab value="compare">Comparaison ({compareCount})</Tab>
+            <Tab value="new">Nouveaux documents ({newCount})</Tab>
+            <Tab value="err">Erreurs LDD ({errCount})</Tab>
           </TabList>
           {tab === "compare" ? <DiffTable rows={detail.compare} /> : null}
           {tab === "new" ? <DiffTable rows={detail.nouveaux} /> : null}
           {tab === "err" ? <ErrorTable rows={detail.errors} /> : null}
-          {detail.errors.length ? (
+          <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <Button disabled={listPage <= 1} onClick={() => setListPage((p) => p - 1)}>
+              Précédent
+            </Button>
+            <Body1>
+              Page {listPage} / {maxPage} — {tabTotal} ligne(s)
+            </Body1>
+            <Button disabled={listPage >= maxPage} onClick={() => setListPage((p) => p + 1)}>
+              Suivant
+            </Button>
+            <Button
+              onClick={async () => {
+                try {
+                  await api.download(`/api/imports/${currentBatchId}/compare.xlsx`, `import_PPD_compare_${currentBatchId}.xlsx`);
+                  toast("success", "Comparaison exportée", "Classeur Excel (comme import_PPD*.xlsx Access).");
+                } catch (e) {
+                  toast("error", "Export comparaison", e instanceof Error ? e.message : "échec");
+                }
+              }}
+            >
+              Exporter la comparaison (.xlsx)
+            </Button>
+          </div>
+          {errCount ? (
             <Body1 style={{ marginTop: 8 }}>
               Les lignes en erreur (lookup fournisseur / LDD) ne seront pas appliquées — comme InsertValidatedChanges.
             </Body1>
@@ -375,7 +465,7 @@ function DiffTable({ rows }: { rows: Array<Record<string, unknown>> }) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.slice(0, 500).map((r) => (
+          {rows.map((r) => (
             <TableRow key={String(r.Id)}>
               <TableCell>
                 {String(r.GroupeLigne)} / {String(r.IndiceLigne)}

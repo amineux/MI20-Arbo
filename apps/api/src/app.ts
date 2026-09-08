@@ -21,7 +21,7 @@ import {
   buildSyntheticFullPpdAoa,
 } from "@mi20/domain";
 import { authHook, entraClientConfig } from "./auth.js";
-import { applyImportBatch, importPpdBuffer, listJalons, loadDocumentSnapshots, ppdConfigFromDb } from "./import-service.js";
+import { applyImportBatch, exportImportCompareXlsx, getImportBatchDetail, importPpdBuffer, listJalons, loadDocumentSnapshots, ppdConfigFromDb } from "./import-service.js";
 import { applyFaBatch, createFicheAvis, importFaBuffer, listFichesAvis } from "./fa-service.js";
 import { dbStats, loadLookupCatalog } from "./seed.js";
 import type { SqlDatabase } from "./sql.js";
@@ -32,6 +32,7 @@ import {
   readOfficialFixture,
   readTemplate,
 } from "./templates.js";
+import { buildKpiExport, storeKpiExport, type KpiExportKind } from "./kpi-service.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
@@ -41,12 +42,17 @@ export interface AppDeps {
 }
 
 export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
-  const app = Fastify({ logger: true });
+  const app = Fastify({
+    logger: true,
+    bodyLimit: 80 * 1024 * 1024,
+    requestTimeout: 0,
+    connectionTimeout: 0,
+  });
   await app.register(cors, {
     origin: true,
     credentials: true,
   });
-  await app.register(multipart, { limits: { fileSize: 80 * 1024 * 1024 } });
+  await app.register(multipart, { limits: { fileSize: 80 * 1024 * 1024, fieldSize: 1 * 1024 * 1024 } });
   app.setErrorHandler((error, request, reply) => {
     request.log.error(error);
     const status = Number((error as { statusCode?: number }).statusCode) || 500;
@@ -74,7 +80,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     const stats = await dbStats(deps.db);
     return {
       projectName: project?.value ?? "MI20 Arbo",
-      version: "1.1.0",
+      version: "1.2.0",
       inspiredBy: "Access BASE ARBO MI20 IHM 1.6.6",
       lock,
       ppd: DEFAULT_PPD_CONFIG,
@@ -373,27 +379,26 @@ function registerImportRoutes(app: FastifyInstance, deps: AppDeps): void {
 
   app.get("/api/imports/:id", async (req, reply) => {
     const id = Number((req.params as { id: string }).id);
-    const batch = await deps.db.get<Record<string, unknown>>("SELECT * FROM import_batch WHERE Id = ?", [id]);
-    if (!batch) {
+    const detail = await getImportBatchDetail(deps.db, id, req.query as Record<string, string | undefined>);
+    if (!detail) {
       reply.code(404).send({ error: "Import introuvable" });
       return;
     }
-    if (String(batch.Mode) === "fa") {
-      const raw = await deps.db.all("SELECT * FROM import_fa_raw WHERE BatchId = ? ORDER BY ligneEXCEL", [id]);
-      const errors = (raw as Array<{ erreur: string | null }>).filter((r) => r.erreur);
-      return { batch, raw, compare: [], nouveaux: [], errors, kind: "fa" };
+    return detail;
+  });
+
+  app.get("/api/imports/:id/compare.xlsx", async (req, reply) => {
+    const id = Number((req.params as { id: string }).id);
+    try {
+      const buf = await exportImportCompareXlsx(deps.db, id);
+      const name = `import_PPD_compare_${id}.xlsx`;
+      reply
+        .header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        .header("Content-Disposition", `attachment; filename="${name}"`)
+        .send(buf);
+    } catch (err) {
+      reply.code(404).send({ error: err instanceof Error ? err.message : String(err) });
     }
-    const raw = await deps.db.all("SELECT * FROM import_raw WHERE BatchId = ? ORDER BY ligneEXCEL", [id]);
-    const compare = await deps.db.all(
-      "SELECT * FROM import_compare WHERE BatchId = ? AND NouveauDocument = 0 ORDER BY GroupeLigne, fieldName",
-      [id],
-    );
-    const nouveaux = await deps.db.all(
-      "SELECT * FROM import_compare WHERE BatchId = ? AND NouveauDocument = 1 ORDER BY GroupeLigne, IndiceLigne, fieldName",
-      [id],
-    );
-    const errors = (raw as Array<{ erreur: string | null }>).filter((r) => r.erreur);
-    return { batch, raw, compare, nouveaux, errors, kind: "ppd" };
   });
 
   app.post("/api/imports/:id/apply", async (req, reply) => {
@@ -451,6 +456,28 @@ function registerExportRoutes(app: FastifyInstance, deps: AppDeps): void {
       .header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
       .header("Content-Disposition", `attachment; filename="${name}"`)
       .send(buf);
+  });
+
+  app.post("/api/exports/:kind", async (req, reply) => {
+    const kindRaw = String((req.params as { kind: string }).kind ?? "").toLowerCase();
+    const kind: KpiExportKind | null =
+      kindRaw === "kpi" || kindRaw === "kpi1"
+        ? "kpi"
+        : kindRaw === "bilan-envois" || kindRaw === "bilan"
+          ? "bilan"
+          : kindRaw === "docts-autorisation" || kindRaw === "docts"
+            ? "docts"
+            : null;
+    if (!kind) {
+      reply.code(404).send({ error: "Export inconnu (kpi, bilan-envois, docts-autorisation)" });
+      return;
+    }
+    const { buffer, fileName } = await buildKpiExport(deps.db, kind);
+    await storeKpiExport(deps.storage, kind, fileName, buffer);
+    reply
+      .header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+      .header("Content-Disposition", `attachment; filename="${fileName}"`)
+      .send(buffer);
   });
 }
 
@@ -525,6 +552,22 @@ function registerBordereauRoutes(app: FastifyInstance, deps: AppDeps): void {
       attached++;
     }
     return { ok: true, attached };
+  });
+
+  app.delete("/api/bordereaux/:id/envois/:envoiId", async (req, reply) => {
+    const id = Number((req.params as { id: string }).id);
+    const envoiId = Number((req.params as { envoiId: string }).envoiId);
+    const bx = await deps.db.get("SELECT Id FROM bordereau WHERE Id = ?", [id]);
+    if (!bx) {
+      reply.code(404).send({ error: "Bordereau introuvable" });
+      return;
+    }
+    const info = await deps.db.run("DELETE FROM envoi WHERE Id = ? AND IdBordereau = ?", [envoiId, id]);
+    if (!info.changes) {
+      reply.code(404).send({ error: "Envoi introuvable" });
+      return;
+    }
+    return { ok: true };
   });
 
   app.post("/api/bordereaux/:id/export", async (req, reply) => {
@@ -684,11 +727,37 @@ function registerRevisionAndFaRoutes(app: FastifyInstance, deps: AppDeps): void 
     accessForms: ["export_KPI1", "BilanEnvois", "DoctsAutorisation"],
     templates: listTemplates().filter((t) => ["kpi", "bilan", "docts"].includes(t.role)),
     stats: await dbStats(deps.db),
+    exports: [
+      { kind: "kpi", path: "/api/exports/kpi", labelFr: "Exporter KPI (compteurs + par fournisseur / jalon)" },
+      { kind: "bilan", path: "/api/exports/bilan-envois", labelFr: "Exporter le bilan des envois" },
+      { kind: "docts", path: "/api/exports/docts-autorisation", labelFr: "Exporter les documents d'autorisation" },
+    ],
   }));
 
-  app.get("/api/reports", async () => {
-    const histo = await deps.db.all("SELECT * FROM doc_histo ORDER BY Id DESC LIMIT 200");
-    return { stub: false, accessForm: "Form_REPORT", histo };
+  app.get("/api/reports", async (req) => {
+    const q = req.query as Record<string, string>;
+    const page = Math.max(1, Number(q.page ?? 1) || 1);
+    const pageSize = Math.min(500, Math.max(10, Number(q.pageSize ?? 50) || 50));
+    const where: string[] = ["1=1"];
+    const params: unknown[] = [];
+    if (q.search?.trim()) {
+      const like = `%${q.search.trim().toLowerCase()}%`;
+      where.push(
+        `(LOWER(COALESCE(FieldName, '')) LIKE ? OR LOWER(COALESCE(UserName, '')) LIKE ? OR CAST(GroupeLigne AS TEXT) LIKE ? OR LOWER(COALESCE(IndiceLigne, '')) LIKE ?)`,
+      );
+      params.push(like, like, like, like);
+    }
+    if (q.isImport === "1" || q.isImport === "true") {
+      where.push("IsImport = 1");
+    }
+    const total =
+      (await deps.db.get<{ c: number }>(`SELECT COUNT(*) as c FROM doc_histo WHERE ${where.join(" AND ")}`, params))
+        ?.c ?? 0;
+    const histo = await deps.db.all(
+      `SELECT * FROM doc_histo WHERE ${where.join(" AND ")} ORDER BY Id DESC LIMIT ? OFFSET ?`,
+      [...params, pageSize, (page - 1) * pageSize],
+    );
+    return { stub: false, accessForm: "Form_REPORT", histo, total: Number(total), page, pageSize };
   });
 }
 

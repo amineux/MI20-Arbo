@@ -101,7 +101,7 @@ const MODULES = [
   { to: "/lookups", title: "Référentiels", desc: "Fournisseur, domaine chargeur, métier, PIC…" },
   { to: "/revisions", title: "Révisions", desc: "Indice de révision lié à un jalon programmé." },
   { to: "/retours-ratp", title: "Retours RATP", desc: "Import Excel FA et saisie — met à jour envois et révisions." },
-  { to: "/kpi", title: "KPI / bilans", desc: "Compteurs de la base et modèles de classeurs." },
+  { to: "/kpi", title: "KPI / bilans", desc: "Compteurs, export KPI / bilan envois / documents d'autorisation." },
   { to: "/rapports", title: "Rapports / audit", desc: "Historique champ à champ." },
   { to: "/verrouillage", title: "Verrouillage", desc: "Suspend les écritures sur la base." },
 ];

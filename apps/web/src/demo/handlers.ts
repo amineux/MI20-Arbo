@@ -17,6 +17,8 @@ import {
   parsePpdSheet,
   parseWorkbookToAoa,
   formatLigne,
+  writeAoaWorkbook,
+  writeMultiSheetWorkbook,
   type DocumentSnapshot,
   type ImportColumn,
 } from "@mi20/domain/browser";
@@ -32,6 +34,7 @@ import {
   type DocumentRow,
 } from "./store";
 import { zipStore } from "./zip";
+import { DEMO_LARGE_FILE_MESSAGE, DEMO_MAX_UPLOAD_BYTES } from "./limits";
 
 export class DemoHttpError extends Error {
   constructor(
@@ -595,7 +598,13 @@ export async function handleDemoApi(url: URL, init?: RequestInit): Promise<Respo
   const path = url.pathname.replace(/\/+$/, "") || "/";
   const q = url.searchParams;
   const writes = method === "POST" || method === "PUT" || method === "PATCH" || method === "DELETE";
-  const lockExempt = path === "/api/lock" || path === "/api/exports/ppd";
+  const lockExempt =
+    path === "/api/lock" ||
+    path === "/api/exports/ppd" ||
+    path === "/api/exports/kpi" ||
+    path === "/api/exports/bilan-envois" ||
+    path === "/api/exports/docts-autorisation" ||
+    path.endsWith("/compare.xlsx");
   if (writes && !lockExempt) assertUnlocked();
   const s = getState();
 
@@ -608,7 +617,7 @@ export async function handleDemoApi(url: URL, init?: RequestInit): Promise<Respo
   if (path === "/api/meta" && method === "GET") {
     return json({
       projectName: "MI20 Arbo",
-      version: "1.1.0",
+      version: "1.2.0",
       inspiredBy: "Access BASE ARBO MI20 IHM 1.6.6",
       lock: s.lock,
       ppd: DEFAULT_PPD_CONFIG,
@@ -803,6 +812,7 @@ export async function handleDemoApi(url: URL, init?: RequestInit): Promise<Respo
     if (!(init?.body instanceof FormData)) throw new DemoHttpError("Fichier Excel fiches d'avis manquant", 400);
     const file = init.body.get("file");
     if (!(file instanceof File)) throw new DemoHttpError("Fichier Excel fiches d'avis manquant", 400);
+    if (file.size > DEMO_MAX_UPLOAD_BYTES) throw new DemoHttpError(DEMO_LARGE_FILE_MESSAGE, 413);
     const buffer = new Uint8Array(await file.arrayBuffer());
     return json(await importFa(buffer, file.name));
   }
@@ -810,6 +820,7 @@ export async function handleDemoApi(url: URL, init?: RequestInit): Promise<Respo
     if (!(init?.body instanceof FormData)) throw new DemoHttpError("Fichier Excel PPD manquant", 400);
     const file = init.body.get("file");
     if (!(file instanceof File)) throw new DemoHttpError("Fichier Excel PPD manquant", 400);
+    if (file.size > DEMO_MAX_UPLOAD_BYTES) throw new DemoHttpError(DEMO_LARGE_FILE_MESSAGE, 413);
     const rapide = String(init.body.get("rapide") ?? q.get("rapide") ?? "") === "true";
     const buffer = new Uint8Array(await file.arrayBuffer());
     return json(await importPpd(buffer, file.name, rapide));
@@ -817,21 +828,68 @@ export async function handleDemoApi(url: URL, init?: RequestInit): Promise<Respo
   if (path === "/api/imports" && method === "GET") {
     return json({ rows: [...s.importBatches].sort((a, b) => Number(b.Id) - Number(a.Id)).slice(0, 50) });
   }
+  const importCompareXlsx = path.match(/^\/api\/imports\/(\d+)\/compare\.xlsx$/);
+  if (importCompareXlsx && method === "GET") {
+    const id = Number(importCompareXlsx[1]);
+    const batch = s.importBatches.find((b) => b.Id === id);
+    if (!batch) throw new DemoHttpError("Import introuvable", 404);
+    const rows = s.importCompare.filter((r) => r.BatchId === id);
+    const aoa: unknown[][] = [
+      ["GroupeLigne", "IndiceLigne", "Champ", "Ancien", "Nouveau", "NouveauDocument", "fieldName"],
+      ...rows.map((r) => [
+        r.GroupeLigne,
+        r.IndiceLigne,
+        r.fieldLabel,
+        r.oldValue ?? "",
+        r.newValue ?? "",
+        r.NouveauDocument ? 1 : 0,
+        r.fieldName,
+      ]),
+    ];
+    const buf = toUint8(writeAoaWorkbook(aoa, "Comparaison"));
+    return binary(buf, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", `import_PPD_compare_${id}.xlsx`);
+  }
   const importId = path.match(/^\/api\/imports\/(\d+)$/);
   if (importId && method === "GET") {
     const id = Number(importId[1]);
     const batch = s.importBatches.find((b) => b.Id === id);
     if (!batch) throw new DemoHttpError("Import introuvable", 404);
+    const page = Math.max(1, Number(q.get("page") ?? 1) || 1);
+    const pageSize = Math.min(500, Math.max(10, Number(q.get("pageSize") ?? 200) || 200));
+    const tab = (q.get("tab") ?? "all").toLowerCase();
+    const want = (name: string) => tab === "all" || tab === name;
+    const slice = <T,>(rows: T[]) => rows.slice((page - 1) * pageSize, page * pageSize);
     if (String(batch.Mode) === "fa") {
-      const raw = s.importFaRaw.filter((r) => r.BatchId === id).sort((a, b) => Number(a.ligneEXCEL) - Number(b.ligneEXCEL));
+      const rawAll = s.importFaRaw.filter((r) => r.BatchId === id).sort((a, b) => Number(a.ligneEXCEL) - Number(b.ligneEXCEL));
+      const raw = slice(rawAll);
       const errors = raw.filter((r) => r.erreur);
-      return json({ batch, raw, compare: [], nouveaux: [], errors, kind: "fa" });
+      return json({
+        batch,
+        raw,
+        compare: [],
+        nouveaux: [],
+        errors,
+        kind: "fa",
+        totals: { compare: 0, nouveaux: 0, errors: rawAll.filter((r) => r.erreur).length, raw: rawAll.length },
+        page,
+        pageSize,
+      });
     }
-    const raw = s.importRaw.filter((r) => r.BatchId === id).sort((a, b) => Number(a.ligneEXCEL) - Number(b.ligneEXCEL));
-    const compare = s.importCompare.filter((r) => r.BatchId === id && r.NouveauDocument === 0);
-    const nouveaux = s.importCompare.filter((r) => r.BatchId === id && r.NouveauDocument === 1);
-    const errors = raw.filter((r) => r.erreur);
-    return json({ batch, raw, compare, nouveaux, errors, kind: "ppd" });
+    const rawAll = s.importRaw.filter((r) => r.BatchId === id).sort((a, b) => Number(a.ligneEXCEL) - Number(b.ligneEXCEL));
+    const compareAll = s.importCompare.filter((r) => r.BatchId === id && r.NouveauDocument === 0);
+    const nouveauxAll = s.importCompare.filter((r) => r.BatchId === id && r.NouveauDocument === 1);
+    const errorsAll = rawAll.filter((r) => r.erreur);
+    return json({
+      batch,
+      raw: want("raw") ? slice(rawAll) : [],
+      compare: want("compare") ? slice(compareAll) : [],
+      nouveaux: want("new") ? slice(nouveauxAll) : [],
+      errors: want("err") ? slice(errorsAll) : [],
+      kind: "ppd",
+      totals: { compare: compareAll.length, nouveaux: nouveauxAll.length, errors: errorsAll.length, raw: rawAll.length },
+      page,
+      pageSize,
+    });
   }
   const apply = path.match(/^\/api\/imports\/(\d+)\/apply$/);
   if (apply && method === "POST") {
@@ -946,6 +1004,18 @@ export async function handleDemoApi(url: URL, init?: RequestInit): Promise<Respo
         NomUtilisateur: "demo.user",
       });
     }
+    saveState();
+    return json({ ok: true });
+  }
+  const bxEnvoi = path.match(/^\/api\/bordereaux\/(\d+)\/envois\/(\d+)$/);
+  if (bxEnvoi && method === "DELETE") {
+    const id = Number(bxEnvoi[1]);
+    const envoiId = Number(bxEnvoi[2]);
+    const bx = s.bordereaux.find((b) => b.Id === id);
+    if (!bx) throw new DemoHttpError("Bordereau introuvable", 404);
+    const before = s.envois.length;
+    s.envois = s.envois.filter((e) => !(e.Id === envoiId && e.IdBordereau === id));
+    if (s.envois.length === before) throw new DemoHttpError("Envoi introuvable", 404);
     saveState();
     return json({ ok: true });
   }
@@ -1075,12 +1145,98 @@ export async function handleDemoApi(url: URL, init?: RequestInit): Promise<Respo
   }
   if (path === "/api/kpi" && method === "GET") {
     return json({
+      stub: false,
       templates: OFFICIAL_TEMPLATES.filter((t) => ["kpi", "bilan", "docts"].includes(t.role)),
       stats: demoStats(s),
+      exports: [
+        { kind: "kpi", path: "/api/exports/kpi", labelFr: "Exporter KPI (compteurs + par fournisseur / jalon)" },
+        { kind: "bilan", path: "/api/exports/bilan-envois", labelFr: "Exporter le bilan des envois" },
+        { kind: "docts", path: "/api/exports/docts-autorisation", labelFr: "Exporter les documents d'autorisation" },
+      ],
     });
   }
+  if (path === "/api/exports/kpi" && method === "POST") {
+    const stats = demoStats(s);
+    const byF = new Map<string, number>();
+    for (const d of s.documents) {
+      const nom = lookupName(d.IdFournisseur as number) || "(sans)";
+      byF.set(nom, (byF.get(nom) ?? 0) + 1);
+    }
+    const buf = toUint8(
+      writeMultiSheetWorkbook([
+        {
+          name: "KPI",
+          aoa: [
+            ["Indicateur", "Valeur"],
+            ["Documents", stats.documents],
+            ["Jalons programmés", stats.jalonsProgrammes],
+            ["Bordereaux", stats.bordereaux],
+            ["Envois", stats.envois],
+            ["Révisions", stats.revisions],
+            ["Fiches d'avis", stats.retoursRatp],
+            ["Lignes d'audit (doc_histo)", stats.histo],
+          ],
+        },
+        {
+          name: "Par fournisseur",
+          aoa: [["Fournisseur", "Documents"], ...[...byF.entries()].map(([nom, c]) => [nom, c])],
+        },
+      ]),
+    );
+    const name = `KPI_MI20_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    return binary(buf, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", name);
+  }
+  if (path === "/api/exports/bilan-envois" && method === "POST") {
+    const header = [
+      "Bordereau",
+      "GroupeLigne",
+      "IndiceLigne",
+      "RefExt",
+      "Titre",
+      "Revision",
+      "ReponseFicheAvis",
+    ];
+    const aoa: unknown[][] = [
+      header,
+      ...s.envois.map((e) => {
+        const d = s.documents.find((doc) => doc.Id === e.IdDocument);
+        const b = s.bordereaux.find((bx) => bx.Id === e.IdBordereau);
+        return [b?.NomComplet, d?.GroupeLigne, d?.IndiceLigne, d?.RefExt, e.Titre, e.Revision, e.ReponseFicheAvis ?? ""];
+      }),
+    ];
+    const buf = toUint8(writeAoaWorkbook(aoa, "BilanEnvois"));
+    const name = `BILAN_ENVOIS_MI20_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    return binary(buf, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", name);
+  }
+  if (path === "/api/exports/docts-autorisation" && method === "POST") {
+    const header = ["GroupeLigne", "IndiceLigne", "RefExt", "Titre", "Revision"];
+    const aoa: unknown[][] = [
+      header,
+      ...s.documents
+        .filter((d) => Number(d.Homologuant) === 1)
+        .map((d) => [d.GroupeLigne, d.IndiceLigne, d.RefExt, d.Titre, d.Revision]),
+    ];
+    const buf = toUint8(writeAoaWorkbook(aoa, "DoctsAutorisation"));
+    const name = `DOCTS_AUTORISATION_MI20_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    return binary(buf, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", name);
+  }
   if (path === "/api/reports" && method === "GET") {
-    return json({ histo: [...s.histo].slice(-100).reverse() });
+    const page = Math.max(1, Number(q.get("page") ?? 1) || 1);
+    const pageSize = Math.min(500, Math.max(10, Number(q.get("pageSize") ?? 50) || 50));
+    const search = (q.get("search") ?? "").trim().toLowerCase();
+    let rows = [...s.histo].reverse();
+    if (search) {
+      rows = rows.filter(
+        (h) =>
+          String(h.FieldName ?? "").toLowerCase().includes(search) ||
+          String(h.UserName ?? "").toLowerCase().includes(search) ||
+          String(h.GroupeLigne ?? "").includes(search) ||
+          String(h.IndiceLigne ?? "").toLowerCase().includes(search),
+      );
+    }
+    if (q.get("isImport") === "1") rows = rows.filter((h) => Number(h.IsImport) === 1);
+    const total = rows.length;
+    return json({ stub: false, histo: rows.slice((page - 1) * pageSize, page * pageSize), total, page, pageSize });
   }
 
   throw new DemoHttpError(`API démo : ${method} ${path} non géré`, 404);

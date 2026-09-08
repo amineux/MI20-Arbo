@@ -20,8 +20,16 @@ function toUint8(data: Buffer | ArrayBuffer | Uint8Array): Uint8Array {
   return new Uint8Array(data);
 }
 
-function workbookFromBytes(data: Buffer | ArrayBuffer | Uint8Array): XLSX.WorkBook {
-  return XLSX.read(toUint8(data), { type: "array", cellDates: true });
+function workbookFromBytes(
+  data: Buffer | ArrayBuffer | Uint8Array,
+  opts?: { sheets?: string | number | Array<string | number>; bookSheets?: boolean },
+): XLSX.WorkBook {
+  return XLSX.read(toUint8(data), {
+    type: "array",
+    cellDates: true,
+    sheets: opts?.sheets,
+    bookSheets: opts?.bookSheets,
+  });
 }
 
 function writeXlsxBuffer(wb: XLSX.WorkBook): Buffer {
@@ -30,10 +38,38 @@ function writeXlsxBuffer(wb: XLSX.WorkBook): Buffer {
   return arr as unknown as Buffer;
 }
 
+const HEADER_PREVIEW_ROWS = 80;
+
+function sheetRange(sheet: XLSX.WorkSheet): XLSX.Range | null {
+  if (!sheet["!ref"]) return null;
+  try {
+    return XLSX.utils.decode_range(sheet["!ref"]);
+  } catch {
+    return null;
+  }
+}
+
 function sheetToAoa(wb: XLSX.WorkBook, name: string): unknown[][] {
   const sheet = wb.Sheets[name];
   if (!sheet) throw new Error("Feuille Excel introuvable");
   return XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: true }) as unknown[][];
+}
+
+/** First rows only — used to detect Num Liv. without materializing a 30k×160 KPI sidecar. */
+function sheetPreviewAoa(sheet: XLSX.WorkSheet, maxRows = HEADER_PREVIEW_ROWS): unknown[][] {
+  const range = sheetRange(sheet);
+  if (!range) return [];
+  const preview: XLSX.Range = {
+    s: range.s,
+    e: { c: range.e.c, r: Math.min(range.e.r, range.s.r + maxRows - 1) },
+  };
+  return XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "", raw: true, range: preview }) as unknown[][];
+}
+
+function estimatedSheetRows(sheet: XLSX.WorkSheet, headerRowIndex: number): number {
+  const range = sheetRange(sheet);
+  if (!range) return 0;
+  return Math.max(0, range.e.r - (range.s.r + headerRowIndex));
 }
 
 function countPlausibleLigneRows(aoa: unknown[][], headerRowIndex: number): number {
@@ -48,22 +84,26 @@ function countPlausibleLigneRows(aoa: unknown[][], headerRowIndex: number): numb
   return n;
 }
 
-function scorePpdSheet(name: string, aoa: unknown[][]): number {
-  const detected = detectHeaderRow(aoa);
+function scorePpdSheet(name: string, preview: unknown[][], sheet?: XLSX.WorkSheet): number {
+  const detected = detectHeaderRow(preview);
   if (!detected) return -1;
   const uname = name.toUpperCase();
-  const lignes = countPlausibleLigneRows(aoa, detected.rowIndex);
+  const previewHits = countPlausibleLigneRows(preview, detected.rowIndex);
+  const estimated = sheet ? estimatedSheetRows(sheet, detected.rowIndex) : previewHits;
+  const lignes = Math.max(previewHits, estimated);
   let nameBonus = 0;
   if (uname === "PPD") nameBonus = 100;
   else if (uname.includes("PPD")) nameBonus = 40;
   return lignes * 1000 + nameBonus;
 }
 
-function scoreFaSheet(name: string, aoa: unknown[][]): number {
-  const headerRowIndex = detectFaHeaderRow(aoa);
+function scoreFaSheet(name: string, preview: unknown[][], sheet?: XLSX.WorkSheet): number {
+  const headerRowIndex = detectFaHeaderRow(preview);
   if (headerRowIndex == null) return -1;
   const uname = name.toUpperCase();
-  const lignes = countPlausibleLigneRows(aoa, headerRowIndex);
+  const previewHits = countPlausibleLigneRows(preview, headerRowIndex);
+  const estimated = sheet ? estimatedSheetRows(sheet, headerRowIndex) : previewHits;
+  const lignes = Math.max(previewHits, estimated);
   let nameBonus = 0;
   if (uname.includes("FA") || uname.includes("RETOUR") || uname.includes("AVIS")) nameBonus = 80;
   return lignes * 1000 + nameBonus;
@@ -78,32 +118,56 @@ function isSidecarSheet(name: string): boolean {
   );
 }
 
+type SheetPreview = { name: string; preview: unknown[][]; sheet: XLSX.WorkSheet };
+
 function pickBestSheet(
-  sheets: Array<{ name: string; aoa: unknown[][] }>,
-  scoreFn: (name: string, aoa: unknown[][]) => number,
-): { name: string; aoa: unknown[][] } | null {
-  let best: { name: string; aoa: unknown[][]; score: number } | null = null;
+  sheets: SheetPreview[],
+  scoreFn: (name: string, preview: unknown[][], sheet: XLSX.WorkSheet) => number,
+): SheetPreview | null {
+  let best: { item: SheetPreview; score: number } | null = null;
   for (const s of sheets) {
-    const score = scoreFn(s.name, s.aoa);
+    const score = scoreFn(s.name, s.preview, s.sheet);
     if (score < 0) continue;
-    if (!best || score > best.score) best = { ...s, score };
+    if (!best || score > best.score) best = { item: s, score };
   }
-  return best;
+  return best?.item ?? null;
 }
 
-function pickPpdSheet(sheets: Array<{ name: string; aoa: unknown[][] }>): { name: string; aoa: unknown[][] } | null {
-  const namedPpd = sheets.find((s) => s.name.toUpperCase() === "PPD" && detectHeaderRow(s.aoa));
+function pickPpdSheet(sheets: SheetPreview[]): SheetPreview | null {
+  const namedPpd = sheets.find((s) => s.name.toUpperCase() === "PPD" && detectHeaderRow(s.preview));
   const others = sheets.filter((s) => s.name.toUpperCase() !== "PPD" && !isSidecarSheet(s.name));
   const bestOther = pickBestSheet(others, scorePpdSheet);
   if (namedPpd) {
-    const det = detectHeaderRow(namedPpd.aoa);
-    const lignes = det ? countPlausibleLigneRows(namedPpd.aoa, det.rowIndex) : 0;
+    const det = detectHeaderRow(namedPpd.preview);
+    const lignes = det ? countPlausibleLigneRows(namedPpd.preview, det.rowIndex) : 0;
     if (lignes > 0) return namedPpd;
-    const otherLignes = bestOther ? scorePpdSheet(bestOther.name, bestOther.aoa) : -1;
-    if (otherLignes >= 1000) return bestOther;
+    const otherScore = bestOther ? scorePpdSheet(bestOther.name, bestOther.preview, bestOther.sheet) : -1;
+    if (otherScore >= 1000) return bestOther;
     return namedPpd;
   }
   return bestOther ?? pickBestSheet(sheets, scorePpdSheet);
+}
+
+function candidateSheetNames(allNames: string[], preferredSheet?: string): string[] {
+  const want = preferredSheet?.trim().toUpperCase();
+  const scan = new Set<string>();
+  allNames.slice(0, 3).forEach((n) => scan.add(n));
+  for (const n of allNames) {
+    const u = n.toUpperCase();
+    if (
+      u === "PPD" ||
+      u.includes("PPD") ||
+      u.includes("FA") ||
+      u.includes("RETOUR") ||
+      u.includes("IMPORT") ||
+      u.includes("LIVR") ||
+      u.includes("AVIS")
+    ) {
+      scan.add(n);
+    }
+    if (want && u.includes(want)) scan.add(n);
+  }
+  return [...scan];
 }
 
 /**
@@ -111,12 +175,23 @@ function pickPpdSheet(sheets: Array<{ name: string; aoa: unknown[][] }>): { name
  * sheet first — pick the sheet that actually has Num Liv. / Nr Livrable /
  * NumLivrable and the most plausible data rows, not merely the first sheet
  * whose name contains "PPD".
+ *
+ * Sidecar sheets (KPI / bilan) are scored from a header preview so a 30k-row
+ * workbook is fully converted only for the winning PPD/FA sheet (API path).
  */
 export function parseWorkbookToAoa(
   buffer: Buffer | ArrayBuffer | Uint8Array,
   preferredSheet?: string,
 ): unknown[][] {
-  const wb = workbookFromBytes(buffer);
+  let listed = workbookFromBytes(buffer, { bookSheets: true }).SheetNames.filter(Boolean);
+  let wb: XLSX.WorkBook;
+  if (!listed.length) {
+    wb = workbookFromBytes(buffer);
+    listed = wb.SheetNames.filter((n) => Boolean(wb.Sheets[n]));
+  } else {
+    const candidates = candidateSheetNames(listed, preferredSheet);
+    wb = workbookFromBytes(buffer, { sheets: candidates.length ? candidates : listed });
+  }
   const names = wb.SheetNames.filter((n) => Boolean(wb.Sheets[n]));
   if (!names.length) throw new Error("Classeur Excel vide");
 
@@ -132,45 +207,30 @@ export function parseWorkbookToAoa(
   const want = preferredSheet?.trim().toUpperCase();
   const wantFa = Boolean(want && (want.includes("FA") || want.includes("RETOUR") || want.includes("AVIS")));
 
-  const scan = new Set<string>();
-  names.slice(0, 3).forEach((n) => scan.add(n));
-  for (const n of names) {
-    const u = n.toUpperCase();
-    if (
-      u === "PPD" ||
-      u.includes("PPD") ||
-      u.includes("FA") ||
-      u.includes("RETOUR") ||
-      u.includes("IMPORT") ||
-      u.includes("LIVR") ||
-      u.includes("AVIS")
-    ) {
-      scan.add(n);
-    }
-    if (want && u.includes(want)) scan.add(n);
-  }
-
-  const sheets = [...scan].map((name) => ({ name, aoa: getAoa(name) }));
+  const sheets: SheetPreview[] = names.map((name) => {
+    const sheet = wb.Sheets[name]!;
+    return { name, sheet, preview: sheetPreviewAoa(sheet) };
+  });
 
   if (want) {
     const named =
       sheets.find((s) => s.name.toUpperCase() === want) ??
       sheets.find((s) => s.name.toUpperCase().includes(want));
     if (named) {
-      if (wantFa && detectFaHeaderRow(named.aoa) != null) return named.aoa;
-      if (!wantFa && detectHeaderRow(named.aoa)) return named.aoa;
+      if (wantFa && detectFaHeaderRow(named.preview) != null) return getAoa(named.name);
+      if (!wantFa && detectHeaderRow(named.preview)) return getAoa(named.name);
     }
   }
 
   if (wantFa) {
     const fa = pickBestSheet(sheets, scoreFaSheet);
-    if (fa) return fa.aoa;
+    if (fa) return getAoa(fa.name);
   }
 
   const ppd = pickPpdSheet(sheets);
-  if (ppd) return ppd.aoa;
+  if (ppd) return getAoa(ppd.name);
   const fa = pickBestSheet(sheets, scoreFaSheet);
-  if (fa) return fa.aoa;
+  if (fa) return getAoa(fa.name);
 
   return getAoa(names[0] ?? "");
 }

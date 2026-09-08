@@ -45,10 +45,41 @@ export const api = {
     });
     if (!res.ok) throw new Error("Téléchargement impossible");
     const blob = await res.blob();
+    const disp = res.headers.get("content-disposition");
+    const name = disp?.match(/filename="([^"]+)"/)?.[1] ?? fallbackName;
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = fallbackName;
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
+  postDownload: async (path: string, fallbackName: string, body?: unknown) => {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    const token = sessionStorage.getItem("mi20.token");
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const res = await fetch(`${BASE}${path}`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body ?? {}),
+    });
+    if (!res.ok) {
+      let detail = "Téléchargement impossible";
+      try {
+        const err = (await res.json()) as { error?: string };
+        if (err.error) detail = err.error;
+      } catch {
+        /* ignore */
+      }
+      throw new Error(detail);
+    }
+    const blob = await res.blob();
+    const disp = res.headers.get("content-disposition");
+    const name = disp?.match(/filename="([^"]+)"/)?.[1] ?? fallbackName;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
     a.click();
     URL.revokeObjectURL(url);
   },

@@ -24,23 +24,29 @@ import { readOfficialFixture, seedOfficialTemplates } from "../src/templates.js"
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), "mi20-"));
 
-function multipartPayload(fileName: string, file: Buffer, fields: Record<string, string> = {}): {
+function multipartPayload(
+  fileName: string,
+  file: Buffer,
+  fields: Record<string, string> = {},
+  fieldOrder: "before-file" | "after-file" = "after-file",
+): {
   payload: Buffer;
   headers: Record<string, string>;
 } {
   const boundary = "----MI20TestBoundary";
   const chunks: Buffer[] = [];
-  chunks.push(
-    Buffer.from(
-      `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${fileName}"\r\nContent-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\r\n\r\n`,
-    ),
+  const fieldParts = Object.entries(fields).map(([name, value]) =>
+    Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${value}\r\n`),
   );
-  chunks.push(file);
-  chunks.push(Buffer.from("\r\n"));
-  for (const [name, value] of Object.entries(fields)) {
-    chunks.push(
-      Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${value}\r\n`),
-    );
+  const fileHead = Buffer.from(
+    `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${fileName}"\r\nContent-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\r\n\r\n`,
+  );
+  if (fieldOrder === "before-file") {
+    chunks.push(...fieldParts);
+    chunks.push(fileHead, file, Buffer.from("\r\n"));
+  } else {
+    chunks.push(fileHead, file, Buffer.from("\r\n"));
+    chunks.push(...fieldParts);
   }
   chunks.push(Buffer.from(`--${boundary}--\r\n`));
   return {
@@ -353,6 +359,17 @@ describe("Bordereau create + EXPORT_BX ZIP", () => {
     expect(raw.subarray(0, 2).toString()).toBe("PK");
     expect(raw.length).toBeGreaterThan(100);
 
+    const detailBx = await app.inject({ method: "GET", url: `/api/bordereaux/${body.id}` });
+    const envoiId = (detailBx.json() as { envois: Array<{ Id: number }> }).envois[0]?.Id;
+    expect(envoiId).toBeTruthy();
+    const detached = await app.inject({
+      method: "DELETE",
+      url: `/api/bordereaux/${body.id}/envois/${envoiId}`,
+    });
+    expect(detached.statusCode).toBe(200);
+    const afterDetach = await app.inject({ method: "GET", url: `/api/bordereaux/${body.id}` });
+    expect((afterDetach.json() as { envois: unknown[] }).envois.length).toBe(0);
+
     await app.close();
     await db.close();
     fs.rmSync(dir, { recursive: true, force: true });
@@ -453,4 +470,83 @@ describe("Scale seed + indexes", () => {
     expect(hit?.Titre).toMatch(/SYNTHETIQUE/);
     await db.close();
   }, 60000);
+});
+
+describe("Large PPD on API (generated, no 30 MB fixture)", () => {
+  it("multipart-uploads 3000 rows (rapide before file), paginates compare, applies, exports KPI/histo", async () => {
+    const h = await harness();
+    const aoa: unknown[][] = [["Nr Livrable", "Titre du document", "Langue", "Fournisseur"]];
+    for (let i = 1; i <= 3000; i++) {
+      aoa.push([`200 / ${i}`, `SYN LARGE ${i}`, "FR", "CAF"]);
+    }
+    const buf = writeAoaWorkbook(aoa, "PPD");
+    expect(buf.length).toBeGreaterThan(20_000);
+    const { payload, headers } = multipartPayload("large_ppd.xlsx", buf, { rapide: "true" }, "before-file");
+    const staged = await h.app.inject({
+      method: "POST",
+      url: "/api/imports/ppd?rapide=true",
+      headers,
+      payload,
+    });
+    expect(staged.statusCode).toBe(200);
+    const body = staged.json() as {
+      batchId: number;
+      rowCount: number;
+      newCount: number;
+      diffCount: number;
+      errorCount: number;
+    };
+    expect(body.rowCount).toBe(3000);
+    expect(body.newCount).toBe(3000);
+    expect(body.errorCount).toBe(0);
+    expect(body.diffCount).toBeGreaterThan(3000);
+
+    const page = await h.app.inject({
+      method: "GET",
+      url: `/api/imports/${body.batchId}?tab=new&page=1&pageSize=50`,
+    });
+    expect(page.statusCode).toBe(200);
+    const detail = page.json() as {
+      nouveaux: unknown[];
+      compare: unknown[];
+      totals: { nouveaux: number; compare: number; errors: number; raw: number };
+      pageSize: number;
+    };
+    expect(detail.nouveaux.length).toBe(50);
+    expect(detail.compare.length).toBe(0);
+    expect(detail.totals.nouveaux).toBeGreaterThanOrEqual(3000);
+    expect(detail.totals.raw).toBe(3000);
+    expect(detail.pageSize).toBe(50);
+
+    const xlsx = await h.app.inject({ method: "GET", url: `/api/imports/${body.batchId}/compare.xlsx` });
+    expect(xlsx.statusCode).toBe(200);
+    expect((xlsx.rawPayload as Buffer).subarray(0, 2).toString()).toBe("PK");
+
+    const applied = await h.app.inject({ method: "POST", url: `/api/imports/${body.batchId}/apply` });
+    expect(applied.statusCode).toBe(200);
+    expect((applied.json() as { appliedDocuments: number }).appliedDocuments).toBe(3000);
+
+    const found = await h.app.inject({ method: "GET", url: "/api/documents?search=200%20/%203000" });
+    expect((found.json() as { total: number }).total).toBeGreaterThanOrEqual(1);
+
+    const kpi = await h.app.inject({ method: "POST", url: "/api/exports/kpi" });
+    expect(kpi.statusCode).toBe(200);
+    expect((kpi.rawPayload as Buffer).subarray(0, 2).toString()).toBe("PK");
+
+    const bilan = await h.app.inject({ method: "POST", url: "/api/exports/bilan-envois" });
+    expect(bilan.statusCode).toBe(200);
+
+    const docts = await h.app.inject({ method: "POST", url: "/api/exports/docts-autorisation" });
+    expect(docts.statusCode).toBe(200);
+
+    const histo = await h.app.inject({ method: "GET", url: "/api/reports?page=1&pageSize=20&isImport=1" });
+    expect(histo.statusCode).toBe(200);
+    const histoBody = histo.json() as { histo: unknown[]; total: number; pageSize: number };
+    expect(histoBody.histo.length).toBe(20);
+    expect(histoBody.total).toBeGreaterThanOrEqual(3000);
+
+    await h.app.close();
+    await h.db.close();
+    fs.rmSync(h.dir, { recursive: true, force: true });
+  }, 120000);
 });

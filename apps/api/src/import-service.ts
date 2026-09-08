@@ -6,6 +6,7 @@ import {
   matchJalonDef,
   parsePpdSheet,
   parseWorkbookToAoa,
+  writeAoaWorkbook,
   type DocumentSnapshot,
   type PpdConfig,
 } from "@mi20/domain";
@@ -111,65 +112,69 @@ export async function importPpdBuffer(args: {
       [args.user, now, args.fileName, parsed.mode, parsed.warnings.join("\n"), parsed.rows.length, errorCount],
     );
     const id = inserted.lastInsertId;
+    const rawRows: unknown[][] = [];
+    const jalonRows: unknown[][] = [];
     for (const row of parsed.rows) {
-      await args.db.run(
-        `INSERT INTO import_raw (BatchId, ImportUser, ImportTime, GroupeLigne, IndiceLigne, ligneEXCEL, erreur, NouveauDocument, payload_json, jalon_json)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          id,
-          args.user,
-          now,
-          row.groupeLigne,
-          row.indiceLigne,
-          row.ligneExcel,
-          row.errors.join("\n") || null,
-          row.isNew ? 1 : 0,
-          JSON.stringify({ ...row.fields, ...jalonsToRawFields(row.jalons), display: row.displayFields }),
-          JSON.stringify(row.jalons),
-        ],
-      );
+      rawRows.push([
+        id,
+        args.user,
+        now,
+        row.groupeLigne,
+        row.indiceLigne,
+        row.ligneExcel,
+        row.errors.join("\n") || null,
+        row.isNew ? 1 : 0,
+        JSON.stringify({ ...row.fields, ...jalonsToRawFields(row.jalons), display: row.displayFields }),
+        JSON.stringify(row.jalons),
+      ]);
       for (const slot of row.jalons) {
         const def = matchJalonDef(slot, jalons);
         if (!def) continue;
-        await args.db.run(
-          `INSERT INTO import_programmation_jalon (BatchId, IdJalon, EstPrevisionnel, DatePrevisionnelle, Version, Code, Revision, GroupeLigne, IndiceLigne)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            id,
-            def.id,
-            slot.estPrevisionnel ? 1 : 0,
-            slot.date,
-            slot.valeur,
-            def.code,
-            row.fields.Revision ?? null,
-            row.groupeLigne,
-            row.indiceLigne,
-          ],
-        );
+        jalonRows.push([
+          id,
+          def.id,
+          slot.estPrevisionnel ? 1 : 0,
+          slot.date,
+          slot.valeur,
+          def.code,
+          row.fields.Revision ?? null,
+          row.groupeLigne,
+          row.indiceLigne,
+        ]);
       }
     }
-    for (const d of diffs) {
-      await args.db.run(
-        `INSERT INTO import_compare (BatchId, GroupeLigne, IndiceLigne, titre_fr, fieldName, fieldLabel, oldValue, newValue, isImported, NouveauDocument, "table", oldValue_brut, newValue_brut, oldEstPrevisionnel, newEstPrevisionnel)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)`,
-        [
-          id,
-          d.groupeLigne,
-          d.indiceLigne,
-          d.titreFr,
-          d.fieldName,
-          d.fieldLabel,
-          d.oldValue,
-          d.newValue,
-          d.nouveauDocument ? 1 : 0,
-          d.table,
-          d.oldValueBrut,
-          d.newValueBrut,
-          d.oldEstPrevisionnel ? 1 : 0,
-          d.newEstPrevisionnel ? 1 : 0,
-        ],
-      );
-    }
+    const compareRows = diffs.map((d) => [
+      id,
+      d.groupeLigne,
+      d.indiceLigne,
+      d.titreFr,
+      d.fieldName,
+      d.fieldLabel,
+      d.oldValue,
+      d.newValue,
+      0,
+      d.nouveauDocument ? 1 : 0,
+      d.table,
+      d.oldValueBrut,
+      d.newValueBrut,
+      d.oldEstPrevisionnel ? 1 : 0,
+      d.newEstPrevisionnel ? 1 : 0,
+    ]);
+    await insertValueChunks(
+      args.db,
+      `INSERT INTO import_raw (BatchId, ImportUser, ImportTime, GroupeLigne, IndiceLigne, ligneEXCEL, erreur, NouveauDocument, payload_json, jalon_json)`,
+      rawRows,
+    );
+    await insertValueChunks(
+      args.db,
+      `INSERT INTO import_programmation_jalon (BatchId, IdJalon, EstPrevisionnel, DatePrevisionnelle, Version, Code, Revision, GroupeLigne, IndiceLigne)`,
+      jalonRows,
+    );
+    await insertValueChunks(
+      args.db,
+      `INSERT INTO import_compare (BatchId, GroupeLigne, IndiceLigne, titre_fr, fieldName, fieldLabel, oldValue, newValue, isImported, NouveauDocument, "table", oldValue_brut, newValue_brut, oldEstPrevisionnel, newEstPrevisionnel)`,
+      compareRows,
+    );
     return id;
   });
 
@@ -263,16 +268,6 @@ export async function applyImportBatch(
     };
   }
 
-  const raws = await db.all<{
-    Id: number;
-    GroupeLigne: number;
-    IndiceLigne: string;
-    erreur: string | null;
-    payload_json: string;
-    jalon_json: string | null;
-    NouveauDocument: number;
-  }>("SELECT * FROM import_raw WHERE BatchId = ?", [batchId]);
-
   const now = new Date().toISOString();
   const skipErrors = options?.onlyWithoutError !== false;
   const defs = await listJalons(db);
@@ -286,12 +281,30 @@ export async function applyImportBatch(
     let appliedDocuments = 0;
     let appliedJalons = 0;
     let skippedErrors = 0;
+    const pageSize = 500;
+    let offset = 0;
 
-    for (const raw of raws) {
-      if (skipErrors && raw.erreur) {
-        skippedErrors++;
-        continue;
-      }
+    while (true) {
+      const raws = await db.all<{
+        Id: number;
+        GroupeLigne: number;
+        IndiceLigne: string;
+        erreur: string | null;
+        payload_json: string;
+        jalon_json: string | null;
+        NouveauDocument: number;
+      }>(
+        "SELECT * FROM import_raw WHERE BatchId = ? ORDER BY Id LIMIT ? OFFSET ?",
+        [batchId, pageSize, offset],
+      );
+      if (!raws.length) break;
+      offset += raws.length;
+
+      for (const raw of raws) {
+        if (skipErrors && raw.erreur) {
+          skippedErrors++;
+          continue;
+        }
       const payload = JSON.parse(raw.payload_json) as Record<string, unknown>;
       remapDocumentAliases(payload);
       const key = `${Number(raw.GroupeLigne)}::${String(raw.IndiceLigne ?? "")}`;
@@ -394,6 +407,7 @@ export async function applyImportBatch(
         appliedJalons++;
       }
     }
+    }
 
     await db.run("UPDATE import_compare SET isImported = 1 WHERE BatchId = ?", [batchId]);
     await db.run(
@@ -420,4 +434,139 @@ function remapDocumentAliases(payload: Record<string, unknown>): void {
   if (payload.IdPICSupport !== undefined) payload.IdPicSupport = payload.IdPICSupport;
   if (payload.IdPerimetre !== undefined) payload.IDPerimetre = payload.IdPerimetre;
   if (payload.estConfidentiel !== undefined) payload.EstConfidentiel = payload.estConfidentiel;
+}
+
+/** SQLite/Postgres both cap bound parameters; 40×15 stays well under 32k. */
+async function insertValueChunks(db: SqlDatabase, sqlHead: string, rows: unknown[][], chunkSize = 40): Promise<void> {
+  if (!rows.length) return;
+  const width = rows[0]!.length;
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    const chunk = rows.slice(i, i + chunkSize);
+    const placeholders = chunk.map(() => `(${Array(width).fill("?").join(",")})`).join(",");
+    await db.run(`${sqlHead} VALUES ${placeholders}`, chunk.flat());
+  }
+}
+
+export function parseImportPage(q: Record<string, string | undefined>): {
+  page: number;
+  pageSize: number;
+  tab: "all" | "compare" | "new" | "err" | "raw";
+  includeRaw: boolean;
+} {
+  const page = Math.max(1, Number(q.page ?? 1) || 1);
+  const pageSize = Math.min(500, Math.max(10, Number(q.pageSize ?? 200) || 200));
+  const rawTab = String(q.tab ?? "all").toLowerCase();
+  const tab =
+    rawTab === "compare" || rawTab === "new" || rawTab === "err" || rawTab === "raw" ? rawTab : "all";
+  return { page, pageSize, tab, includeRaw: q.includeRaw === "1" || q.includeRaw === "true" };
+}
+
+async function countSql(db: SqlDatabase, sql: string, params: unknown[]): Promise<number> {
+  const row = await db.get<{ c: number }>(sql, params);
+  return Number(row?.c ?? 0);
+}
+
+export async function getImportBatchDetail(
+  db: SqlDatabase,
+  id: number,
+  q: Record<string, string | undefined>,
+): Promise<Record<string, unknown> | null> {
+  const batch = await db.get<Record<string, unknown>>("SELECT * FROM import_batch WHERE Id = ?", [id]);
+  if (!batch) return null;
+  const { page, pageSize, tab, includeRaw } = parseImportPage(q);
+  const offset = (page - 1) * pageSize;
+  const want = (name: "compare" | "new" | "err" | "raw") => tab === "all" || tab === name;
+
+  if (String(batch.Mode) === "fa") {
+    const totals = {
+      compare: 0,
+      nouveaux: 0,
+      errors: await countSql(db, "SELECT COUNT(*) as c FROM import_fa_raw WHERE BatchId = ? AND erreur IS NOT NULL AND erreur != ''", [id]),
+      raw: await countSql(db, "SELECT COUNT(*) as c FROM import_fa_raw WHERE BatchId = ?", [id]),
+    };
+    const raw = want("raw") || want("err") || tab === "all"
+      ? await db.all(
+          "SELECT * FROM import_fa_raw WHERE BatchId = ? ORDER BY ligneEXCEL LIMIT ? OFFSET ?",
+          [id, pageSize, offset],
+        )
+      : [];
+    const errors = (raw as Array<{ erreur: string | null }>).filter((r) => r.erreur);
+    return { batch, raw, compare: [], nouveaux: [], errors, kind: "fa", totals, page, pageSize };
+  }
+
+  const totals = {
+    compare: await countSql(
+      db,
+      "SELECT COUNT(*) as c FROM import_compare WHERE BatchId = ? AND NouveauDocument = 0",
+      [id],
+    ),
+    nouveaux: await countSql(
+      db,
+      "SELECT COUNT(*) as c FROM import_compare WHERE BatchId = ? AND NouveauDocument = 1",
+      [id],
+    ),
+    errors: await countSql(
+      db,
+      "SELECT COUNT(*) as c FROM import_raw WHERE BatchId = ? AND erreur IS NOT NULL AND erreur != ''",
+      [id],
+    ),
+    raw: await countSql(db, "SELECT COUNT(*) as c FROM import_raw WHERE BatchId = ?", [id]),
+  };
+
+  const compare = want("compare")
+    ? await db.all(
+        "SELECT * FROM import_compare WHERE BatchId = ? AND NouveauDocument = 0 ORDER BY GroupeLigne, fieldName LIMIT ? OFFSET ?",
+        [id, pageSize, offset],
+      )
+    : [];
+  const nouveaux = want("new")
+    ? await db.all(
+        "SELECT * FROM import_compare WHERE BatchId = ? AND NouveauDocument = 1 ORDER BY GroupeLigne, IndiceLigne, fieldName LIMIT ? OFFSET ?",
+        [id, pageSize, offset],
+      )
+    : [];
+  const errors = want("err")
+    ? await db.all(
+        "SELECT Id, BatchId, GroupeLigne, IndiceLigne, ligneEXCEL, erreur, NouveauDocument FROM import_raw WHERE BatchId = ? AND erreur IS NOT NULL AND erreur != '' ORDER BY ligneEXCEL LIMIT ? OFFSET ?",
+        [id, pageSize, offset],
+      )
+    : [];
+  const raw = includeRaw || want("raw")
+    ? await db.all(
+        "SELECT Id, BatchId, GroupeLigne, IndiceLigne, ligneEXCEL, erreur, NouveauDocument FROM import_raw WHERE BatchId = ? ORDER BY ligneEXCEL LIMIT ? OFFSET ?",
+        [id, pageSize, offset],
+      )
+    : [];
+  return { batch, raw, compare, nouveaux, errors, kind: "ppd", totals, page, pageSize };
+}
+
+export async function exportImportCompareXlsx(db: SqlDatabase, batchId: number): Promise<Buffer> {
+  const batch = await db.get("SELECT Id FROM import_batch WHERE Id = ?", [batchId]);
+  if (!batch) throw new Error("Import introuvable");
+  const rows = await db.all<{
+    GroupeLigne: number;
+    IndiceLigne: string;
+    fieldLabel: string;
+    oldValue: string | null;
+    newValue: string | null;
+    NouveauDocument: number;
+    fieldName: string;
+  }>(
+    `SELECT GroupeLigne, IndiceLigne, fieldLabel, oldValue, newValue, NouveauDocument, fieldName
+     FROM import_compare WHERE BatchId = ? ORDER BY GroupeLigne, IndiceLigne, fieldName`,
+    [batchId],
+  );
+  const aoa: unknown[][] = [
+    ["GroupeLigne", "IndiceLigne", "Champ", "Ancien", "Nouveau", "NouveauDocument", "fieldName"],
+    ...rows.map((r) => [
+      r.GroupeLigne,
+      r.IndiceLigne,
+      r.fieldLabel,
+      r.oldValue ?? "",
+      r.newValue ?? "",
+      r.NouveauDocument ? 1 : 0,
+      r.fieldName,
+    ]),
+  ];
+  return writeAoaWorkbook(aoa, "Comparaison");
 }

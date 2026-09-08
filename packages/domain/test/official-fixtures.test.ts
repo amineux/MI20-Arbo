@@ -95,4 +95,25 @@ describe("official Base Arbo fixtures", () => {
     expect(parsed.rows).toHaveLength(2);
     expect(parsed.rows[0]).toMatchObject({ groupeLigne: 71, indiceLigne: "8" });
   });
+
+  it("picks the PPD sheet when a tall KPI sidecar is first (without requiring a 30 MB fixture)", () => {
+    const kpiRows: unknown[][] = [["Indicateur", "Valeur"]];
+    for (let i = 0; i < 2500; i++) kpiRows.push([`KPI ${i}`, i]);
+    const buf = writeMultiSheetWorkbook([
+      { name: "Indicateurs KPI", aoa: kpiRows },
+      {
+        name: "PPD",
+        aoa: [
+          ["Num Liv.", "Titre du document", "Langue"],
+          ["72 / 1", "LIVRABLE PPD", "FR"],
+          ["72 / 2", "LIVRABLE PPD 2", "EN"],
+        ],
+      },
+    ]);
+    const aoa = parseWorkbookToAoa(buf);
+    const parsed = parsePpdSheet(aoa, columns, emptyLookups, DEFAULT_PPD_CONFIG);
+    expect(parsed.mode).toBe("full");
+    expect(parsed.rows).toHaveLength(2);
+    expect(parsed.rows[0]).toMatchObject({ groupeLigne: 72, indiceLigne: "1" });
+  });
 });

@@ -218,7 +218,7 @@ export function App() {
                 {import.meta.env.VITE_STATIC_DEMO === "true" ? " · enregistré dans ce navigateur" : ""}
               </span>
             </div>
-            <Text className={s.version}>v{meta?.version ?? "1.1.0"}</Text>
+            <Text className={s.version}>v{meta?.version ?? "1.2.0"}</Text>
           </header>
           <nav className={s.nav} aria-label="Modules">
             {PRIMARY.map((item) => (
@@ -251,6 +251,18 @@ export function App() {
             </Menu>
           </nav>
         </div>
+        {import.meta.env.VITE_STATIC_DEMO === "true" ? (
+          <div className={s.lockWrap}>
+            <MessageBar intent="warning">
+              <MessageBarBody>
+                <MessageBarTitle>Démo GitHub Pages</MessageBarTitle>
+                Petits fichiers seulement (navigateur / localStorage). Un PPD Access volumineux (~30 000 lignes) se
+                traite dans l&apos;application complète : <b>npm run dev</b> ou <b>docker compose</b>, pas sur cette
+                page statique.
+              </MessageBarBody>
+            </MessageBar>
+          </div>
+        ) : null}
         {meta?.lock?.locked ? (
           <div className={s.lockWrap}>
             <MessageBar intent="warning">

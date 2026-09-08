@@ -213,3 +213,22 @@ describe("demo handlers — lock + lookups", () => {
     expect(docs.rows.some((d) => d.GroupeLigne === 36 && d.IndiceLigne === "9351.3")).toBe(true);
   });
 });
+
+describe("demo handlers — Pages refuse giant Excel", () => {
+  it("returns a French 413 pointing to npm run dev / docker", async () => {
+    const { DEMO_LARGE_FILE_MESSAGE, DEMO_MAX_UPLOAD_BYTES } = await import("./limits");
+    const oversized = new Uint8Array(DEMO_MAX_UPLOAD_BYTES + 64);
+    const file = asFile(oversized, "ppd-access.xlsx");
+    const fd = new FormData();
+    fd.append("rapide", "true");
+    fd.append("file", file);
+    const res = await call("/api/imports/ppd?rapide=true", { method: "POST", body: fd });
+    expect(res.status).toBe(413);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toContain("npm run dev");
+    expect(body.error).toContain("docker");
+    expect(body.error).toMatch(/GitHub Pages|navigateur/i);
+    expect(body.error.length).toBeGreaterThan(80);
+    expect(DEMO_LARGE_FILE_MESSAGE).toContain("application complète");
+  });
+});

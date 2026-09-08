@@ -104,6 +104,7 @@ export function BordereauDetailPage() {
             <TableHeaderCell>Réf.</TableHeaderCell>
             <TableHeaderCell>Titre</TableHeaderCell>
             <TableHeaderCell>Indice</TableHeaderCell>
+            <TableHeaderCell></TableHeaderCell>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -115,6 +116,22 @@ export function BordereauDetailPage() {
               <TableCell>{String(e.RefExt)}</TableCell>
               <TableCell>{String(e.Titre)}</TableCell>
               <TableCell>{String(e.Revision)}</TableCell>
+              <TableCell>
+                <Button
+                  size="small"
+                  onClick={async () => {
+                    try {
+                      await api.del(`/api/bordereaux/${id}/envois/${e.Id}`);
+                      toast("success", "Document détaché");
+                      reload();
+                    } catch (err) {
+                      toast("error", "Détacher", err instanceof Error ? err.message : "échec");
+                    }
+                  }}
+                >
+                  Détacher
+                </Button>
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>

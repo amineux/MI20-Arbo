@@ -26,7 +26,7 @@ Open **http://127.0.0.1:5173** (Vite proxies `/api` to the API). SQLite file is 
    - *Charger Import_Rapide_exemple.xlsx* (mode rapide, `Nr Livrable`) → onglets Comparaison / Nouveaux / Erreurs LDD → **Appliquer les modifications validées**.
    - Rows with bad LDD (`UCase(Trim(Nom))`, e.g. unknown fournisseur) are listed and **skipped** on apply; they do not crash the lot.
    - *Charger Import_Rapide_Jalons.xlsx* for jalons-only.
-   - *Charger PPD_Template.xlsx (mode complet)* or **upload** a full PPD (header `Num Liv.`). The official template is a header shell (0 livrables); the demo button fills example rows with those headers. A larger/new workbook with the same headers is parsed even if `Num Liv.` is not on the first sheet. After apply, Accueil counters and Documents search (including `36 / 9351.3`) read the database.
+   - *Charger PPD_Template.xlsx (mode complet)* or **upload** a full PPD (header `Num Liv.`). Large Access-scale workbooks (15–34 MB, tens of thousands of rows) are parsed **on the API**, not in the browser. Compare is paginated; apply does not load the whole sheet in the UI.
 4. **Bordereaux** — choose leader **CAF** → **Créer le bordereau** → search a document → **Rattacher** → **Exporter et télécharger le ZIP**. Pack layout: `EXPORT_BX/MI20_BORD_<code>/` (manifest + `MI20_BORD_TEMPLATE_M5_V12.xls`). Download generates the pack if needed (one-click).
 5. **Retours RATP** → onglet **Import Excel FA** → *Charger Import_Retours_RATP_exemple.xlsx* (header `NumLivrable`) → **Appliquer les fiches d'avis**. That updates `fiche_avis`, `envoi` (Réponse / fichier FA) and `revision`. Unknown livrables stay in the error list (not a silent no-op). Manual saisie on the other tab writes the same tables.
 
@@ -57,7 +57,7 @@ SQLite-in-docker (no Postgres): `docker compose --profile sqlite up --build api-
 | Postgres / Neon / Supabase | Set `DATABASE_URL=postgres://...` (same schema/migrations). Docker Compose already does this. |
 | Indexes | `GroupeLigne+IndiceLigne` unique, `programmation_jalon(IdDocument,IdJalon)`, envoi/revision/histo/FA batch indexes |
 
-The API loads document snapshots for PPD compare in memory; tens of thousands of rows is the intended band. Bulk apply skips LDD-error rows.
+The API parses Excel with SheetJS on the server (80 MB body/file limit), stages `import_raw` / `import_compare`, and serves compare pages so the browser never materializes ~30k diff rows at once.
 
 ## Temporary public demo (not the success target)
 
@@ -65,7 +65,7 @@ Shareable HTTPS test link (GitHub Pages, no Entra, no SharePoint):
 
 **https://amineux.github.io/MI20-Arbo/**
 
-Hash routes (`#/documents`, `#/import-ppd`, `#/bordereaux`, `#/retours-ratp`). **In-browser localStorage intercept** — useful for an email click, **not** durable storage. Production / team use is `npm run dev` or `docker compose`.
+Hash routes (`#/documents`, `#/import-ppd`, `#/bordereaux`, `#/retours-ratp`). **In-browser localStorage intercept** — useful for an email click, **not** durable storage. Very large PPD files are **rejected** on this demo with a French message pointing to `npm run dev` / Docker. Production / team use is `npm run dev` or `docker compose`.
 
 Rebuild:
 
@@ -140,11 +140,12 @@ From `docs/handoff/config.txt` `[PPD]` + `import_columns.csv`:
 
 ## Remaining gaps (honest)
 
-- **KPI / bilan / docts autorisation**: templates download; Access CopyFromRecordset fill is not implemented.
-- **GitHub Pages** remains a localStorage demo (email click). Durable work is `npm run dev` / Docker + Postgres.
+- **KPI / bilan / docts autorisation macros**: data exports are filled from Postgres/SQLite (KPI counters, bilan envois, Homologuant). Official `.xlsm` VBA/CopyFromRecordset layout is not reproduced cell-for-cell; templates remain downloadable.
+- **GitHub Pages** remains a localStorage demo (email click). Durable work and giant Excel are `npm run dev` / Docker + Postgres.
 - **Azure SQL** script exists (`docs/sql/azure.sql`) but the Node API talks SQLite or Postgres only.
 - **SharePoint / Entra / Graph** is optional production hosting — not required for the three flows.
-- **Production Access dump** (~31k documents) is not in the repo. Scale is proven with synthetic seed + indexes; import a real PPD locally, do not commit it.
+- **Production Access dump** (~31k documents) is not in the repo. Scale is proven with synthetic seed + generated multi-thousand-row PPD import tests; import a real PPD locally, do not commit it.
+- **import_bilan_envois** (Access staging of a bilan workbook back into envois) is not a dedicated import screen — bilan is an export from `envoi`.
 - **Form_ARCHI** is out of MVP (handoff).
 
 ## License

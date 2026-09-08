@@ -7,16 +7,16 @@ Source: `docs/handoff/TEKKY_BASE_ARBO_HANDOFF.md`. Do not add modules that are n
 | Form_HOME | `/` | MVP |
 | Form_EDIT_DOC | `/documents/:id` | MVP |
 | Form_FILTRES_RECHERCHE | `/documents` (search + filters) | MVP |
-| Form_import_compare | `/import-ppd/:batchId` tab Comparaison | MVP |
-| Form_import_nouveaux_docs | `/import-ppd/:batchId` tab Nouveaux | MVP |
-| ImportPPD / ImportPPD_Rapide / ImportPPD_Jalons_Rapide | `/import-ppd` (flag rapide) | MVP (jalons inclus dans le parse 44–89) |
+| Form_import_compare | `/import-ppd/:batchId` tab Comparaison | MVP (pagination API + export Excel) |
+| Form_import_nouveaux_docs | `/import-ppd/:batchId` tab Nouveaux | MVP (pagination API) |
+| ImportPPD / ImportPPD_Rapide / ImportPPD_Jalons_Rapide | `/import-ppd` (flag rapide) | MVP — parse Excel **côté API** (gros PPD) ; démo Pages = petits fichiers |
 | DoExportPPD / Form_EXPORT (PPD) | `/export-ppd` | MVP |
-| Form_CREATE_BX / Form_MGT_BX | `/bordereaux`, `/bordereaux/:id` | MVP |
+| Form_CREATE_BX / Form_MGT_BX | `/bordereaux`, `/bordereaux/:id` | MVP (rattacher / détacher / ZIP) |
 | Lookups (fournisseur, domaineChargeur, metier, PIC, …) | `/lookups` | MVP |
 | Form_CREATE_REV | `/revisions` | MVP (persisté) |
 | Form_SaisieRetoursRATP / ImportRetoursRATP / fiche avis | `/retours-ratp` | MVP (saisie + import Excel NumLivrable) |
-| export_KPI1 / ExportBilanEnvois / DoctsAutorisation | `/kpi` | Stub |
-| Form_REPORT / doc_histo | `/rapports` | Stub (histo déjà écrit à l'import/édition) |
+| export_KPI1 / ExportBilanEnvois / DoctsAutorisation | `/kpi` | MVP (exports remplis depuis la base + modèles) |
+| Form_REPORT / doc_histo | `/rapports` | MVP (histo paginé, écrit à l'import/édition) |
 | Form_VerrouillageBase | `/verrouillage` + bannière globale | Route + bannière (toggle démo) |
 | Form_ARCHI | — | Not in MVP (handoff list only; no dedicated screen) |
 | AttachTables_* / config.ini | API `app_config` + `.env` | Config, not a screen |

@@ -23,6 +23,13 @@ import {
 import { authHook, entraClientConfig } from "./auth.js";
 import { applyImportBatch, exportImportCompareXlsx, getImportBatchDetail, importPpdBuffer, listJalons, loadDocumentSnapshots, ppdConfigFromDb } from "./import-service.js";
 import { applyFaBatch, createFicheAvis, importFaBuffer, listFichesAvis } from "./fa-service.js";
+import {
+  apiPathname,
+  isAppLocked,
+  isLockExemptWrite,
+  isMutatingMethod,
+  lockRefusalMessage,
+} from "./lock.js";
 import { dbStats, loadLookupCatalog } from "./seed.js";
 import type { SqlDatabase } from "./sql.js";
 import type { FileStorage } from "./storage.js";
@@ -61,6 +68,17 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     reply.code(safe).send({ error: message, message });
   });
   app.addHook("preHandler", authHook);
+  app.addHook("preHandler", async (req, reply) => {
+    if (!isMutatingMethod(req.method)) return;
+    const pathname = apiPathname(req.url);
+    if (!pathname.startsWith("/api/") || isLockExemptWrite(pathname)) return;
+    const lock = await deps.db.get<{ locked: unknown; message: string | null }>(
+      "SELECT locked, message FROM app_lock WHERE id = 1",
+    );
+    if (!isAppLocked(lock?.locked)) return;
+    const message = lockRefusalMessage(lock?.message);
+    return reply.code(409).send({ error: message, message });
+  });
 
   const webDist = process.env.WEB_DIST ?? path.resolve(here, "../../web/dist");
 

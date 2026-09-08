@@ -25,7 +25,6 @@ import { applyImportBatch, exportImportCompareXlsx, getImportBatchDetail, import
 import { applyFaBatch, createFicheAvis, importFaBuffer, listFichesAvis } from "./fa-service.js";
 import {
   apiPathname,
-  AppLockedError,
   isAppLocked,
   isLockExemptWrite,
   isMutatingMethod,
@@ -69,7 +68,7 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     reply.code(safe).send({ error: message, message });
   });
   app.addHook("preHandler", authHook);
-  app.addHook("preHandler", async (req) => {
+  app.addHook("preHandler", async (req, reply) => {
     if (!isMutatingMethod(req.method)) return;
     const pathname = apiPathname(req.url);
     if (!pathname.startsWith("/api/") || isLockExemptWrite(pathname)) return;
@@ -77,7 +76,8 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
       "SELECT locked, message FROM app_lock WHERE id = 1",
     );
     if (!isAppLocked(lock?.locked)) return;
-    throw new AppLockedError(lockRefusalMessage(lock?.message));
+    const message = lockRefusalMessage(lock?.message);
+    return reply.code(409).send({ error: message, message });
   });
 
   const webDist = process.env.WEB_DIST ?? path.resolve(here, "../../web/dist");

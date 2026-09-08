@@ -1,15 +1,6 @@
 /** Default Access-style lock copy when `app_lock.message` is empty. */
 export const BASE_LOCKED_MESSAGE = "Base verrouillée — les mises à jour sont suspendues.";
 
-export class AppLockedError extends Error {
-  readonly statusCode = 409;
-
-  constructor(message = BASE_LOCKED_MESSAGE) {
-    super(message);
-    this.name = "AppLockedError";
-  }
-}
-
 export function isMutatingMethod(method: string): boolean {
   const m = method.toUpperCase();
   return m === "POST" || m === "PUT" || m === "PATCH" || m === "DELETE";
